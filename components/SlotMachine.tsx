@@ -16,7 +16,7 @@ import {
   StyleSheet,
   Image,
   Platform,
-  useWindowDimensions,
+  LayoutChangeEvent,
 } from 'react-native';
 import type { Restaurant } from '@/hooks/useRestaurants';
 import { FontSizes, Radii } from '@/constants/theme';
@@ -155,11 +155,16 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
   { pool, spinning, onSpinStart, onSpinComplete, spinLabel = 'SPIN', activeCategory, onCategoryChange },
   ref,
 ) {
-  const { width: screenW } = useWindowDimensions();
-  const measuredW  = screenW > 0 ? screenW : 390;
-  // On desktop (wide screens) allow up to 680 px so the machine doesn't look
-  // tiny; mobile screens are narrower than 680 px anyway so the cap is never hit.
-  const cabinetW   = Math.min(Math.round(measuredW * 0.96), 680);
+  // useWindowDimensions returns 0 during Expo static-export SSR hydration and
+  // never properly updates on web, leaving the machine stuck at a small fallback
+  // size. onLayout measures the actual rendered container width instead — it fires
+  // immediately after mount and correctly tracks resize.
+  const [containerW, setContainerW] = useState(0);
+  const onWrapLayout = useCallback((e: LayoutChangeEvent) => {
+    setContainerW(e.nativeEvent.layout.width);
+  }, []);
+  const effectiveW = containerW > 0 ? containerW : 390;
+  const cabinetW   = Math.min(Math.round(effectiveW * 0.96), 680);
   const cabinetH   = Math.round(cabinetW / CABINET_ASPECT);
 
   const reelLeft   = Math.round(cabinetW * 0.184);
@@ -182,6 +187,10 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
   const tickIds       = useRef<string[]>(['', '', '']);
   const prevB         = useRef([0, 0, 0]);
   const lastStopOrder = useRef<readonly number[] | null>(null);
+  // Tracks whether a spin animation is currently in flight. Used to prevent
+  // the pool-change reset effect from resetting the reels mid-spin (which
+  // happens when the live API response arrives while the reels are spinning).
+  const isSpinActiveRef = useRef(false);
 
   const defaultItems = useCallback((): Restaurant[][] => {
     if (pool.length === 0) return [[], [], []];
@@ -212,8 +221,11 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
 
   const clearAllTicks = useCallback(() => { tickIds.current.forEach((_, i) => clearReelTick(i)); }, [clearReelTick]);
 
-  // Reset reels only when pool / category changes
+  // Reset reels when pool / category changes — but NEVER during an active spin.
+  // The live API fetch can arrive mid-spin and change poolKey, which would
+  // otherwise call setValue(0) and snap all reels back to the start position.
   useEffect(() => {
+    if (isSpinActiveRef.current) return;
     anims.forEach((a) => a.setValue(0));
     setShowGlow(false); stopGlow(); setReelItems(defaultItems());
   }, [poolKey, activeCategory, anims, defaultItems, stopGlow]);
@@ -249,28 +261,31 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
       if (boundary !== prevB.current[tickReel]) { prevB.current[tickReel] = boundary; playTick(); }
     });
 
+    isSpinActiveRef.current = true;
     onSpinStart();
 
     let finished = 0;
     data.forEach((reelData, i) => {
-      Animated.sequence([
-        Animated.timing(anims[i], { toValue: reelData.overshootY, duration: DURATIONS[profile(i)], easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        // Was Animated.spring — springs leave a subpixel residual on Safari
-        // and don't guarantee an exact landing value. timing+back-easing
-        // gives the same "settle into place" feel but ALWAYS lands at exactly
-        // targetY, so the winner logo is pixel-perfectly centred in the payline.
-        Animated.timing(anims[i], { toValue: reelData.targetY, duration: 280, easing: Easing.out(Easing.back(1.6)), useNativeDriver: true }),
-      ]).start(({ finished: ok }) => {
+      // Single smooth deceleration directly to targetY — no overshoot step.
+      // A two-step sequence (overshoot → spring/back-ease) caused misalignment
+      // because: (a) springs don't guarantee an exact landing pixel, and (b) if
+      // the pool updates mid-spin (live API response), the interleaved setValue(0)
+      // call from the reset effect can corrupt the CSS transform before the
+      // animation's completion callback fires. One timing animation always ends
+      // exactly at toValue, and setValue() immediately after is belt-and-braces.
+      Animated.timing(anims[i], {
+        toValue: reelData.targetY,
+        duration: DURATIONS[profile(i)],
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished: ok }) => {
         if (!ok) return;
-        // Belt-and-braces: force exact pixel even if the JS animator left a
-        // floating-point residual on this platform.
-        anims[i].setValue(reelData.targetY);
+        anims[i].setValue(reelData.targetY); // snap to exact pixel
         clearReelTick(i);
         playReelStop();
         finished += 1;
         if (finished === NUM_REELS) {
-          // Reels stay at landed position — winner logo visible in payline.
-          // Winner card slides in below the machine (handled by parent / index.tsx).
+          isSpinActiveRef.current = false;
           setShowGlow(true); startGlow(); playWinDing();
           setTimeout(() => onSpinComplete(picked), 1400);
         }
@@ -285,7 +300,7 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
   const glowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.22, 0.72] });
 
   return (
-    <View style={styles.wrap}>
+    <View style={styles.wrap} onLayout={onWrapLayout}>
       {/* Category pills — wrapping flex row so all are visible at once */}
       <View style={[styles.categoryShell, { maxWidth: cabinetW }]}>
         <View style={styles.categoryRow}>
