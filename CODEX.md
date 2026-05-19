@@ -631,3 +631,118 @@ Check in browser:
 - Logo, name, address, Open in Maps, optional Call, Spin Again are all visible
 - Tapping Spin Again dismisses overlay and starts a new spin
 - No result panel visible below the machine
+
+---
+
+## 15. 2026-05-19 — Backend + Frontend deployed to Vercel (public URL)
+
+### Backend: `celebration-backend`
+- **Path:** `/Users/leemoore/Downloads/celebration-backend/`
+- **Framework:** Next.js 14, Pages Router
+- **Live URL:** `https://celebration-backend.vercel.app`
+- **GitHub repo:** `https://github.com/lmoorey2k/celebration-backend`
+- **Database:** Supabase PostgreSQL, project ID `dvwobegxzbekbhdbnnoj` (East US / Ohio)
+- **Vercel env vars** (set via Vercel web UI dashboard — never commit actual values):
+  ```
+  NEXT_PUBLIC_SUPABASE_URL=<supabase project URL>
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<sb_publishable_... key>
+  SUPABASE_SECRET_KEY=<sb_secret_... key>
+  ADMIN_PASSWORD=<admin password>
+  ```
+  Real values live in `celebration-backend/.env.local` (in `.gitignore` — never committed) and in the Vercel project's Environment Variables dashboard.
+- **Key routes:**
+  - `GET /api/restaurants` — returns `{ restaurants: [...] }` from Supabase; Expo app fetches this on mount and falls back to static JSON on failure
+  - `GET /api/admin` / `POST /api/admin` — admin restaurant management (requires `ADMIN_PASSWORD`)
+
+### Frontend: `Celebration-Roulet` (Expo web)
+- **Path:** `/Users/leemoore/Downloads/Celebration-Roulet/`
+- **Live URL:** `https://celebration-roulette.vercel.app`
+- **GitHub repo:** `https://github.com/lmoorey2k/celebration-roulette`
+- **Build:** `npx expo export -p web` → outputs to `dist/`
+- **`vercel.json`** (at project root):
+  ```json
+  { "buildCommand": "npx expo export -p web", "outputDirectory": "dist", "installCommand": "npm install" }
+  ```
+- **`.env.local`** (at project root, in `.gitignore`):
+  ```
+  EXPO_PUBLIC_API_URL=https://celebration-backend.vercel.app
+  ```
+  This env var is baked in at build time by Expo. Without it, the app falls back to `data/restaurants.json`.
+- **GitHub PAT for git push** (only needed for CLI pushes, not Vercel):
+  - Username: `lmoorey2k`
+  - Token embedded in remote URL: `https://lmoorey2k:<PAT>@github.com/lmoorey2k/celebration-roulette.git`
+  - Vercel auto-deploys whenever `main` branch is pushed.
+
+### Deployment workflow
+1. Make changes to source files.
+2. Run `npx expo export -p web` locally to verify the build passes.
+3. `git add <changed files> && git commit -m "..."` and `git push origin main`.
+4. Vercel picks up the push and redeploys automatically within ~1 minute.
+5. Hard-refresh the browser (Cmd+Shift+R) to bust the JS bundle cache.
+
+---
+
+## 16. 2026-05-19 — Safari bug fixes (sound, alignment, desktop sizing)
+
+Three cross-browser bugs were identified after live testing at `https://celebration-roulette.vercel.app`.
+
+### Bug 1: No sound on mobile Safari + mobile Chrome
+
+**Root cause:** The `playWhenReady` function in `utils/audio.ts` was deferring the `play()` call into a `.then()` callback after `resumeAudio()` resolved. Both mobile Safari and mobile Chrome require a real `AudioContext` source to be `start()`-ed synchronously within the user-gesture call stack — a deferred Promise callback breaks out of that gesture context and the browser silently drops the audio.
+
+**Fix (utils/audio.ts):**
+- Added `let _unlocked = false;` module-level flag.
+- Added `unlockAudio(c)` helper that on first call creates a 1-sample silent `BufferSource` and calls `src.start(0)` — this physically unlocks the browser audio policy.
+- `playWhenReady` now:
+  1. Calls `c.resume().catch(()=>{})` synchronously (fire-and-forget) if suspended.
+  2. Calls `unlockAudio(c)` to do the one-time silent-buffer unlock.
+  3. Immediately calls `play(c)` without any async gap.
+- The old `resumeAudio().then(...)` pattern is gone.
+
+### Bug 2: Reel icons misaligned after spin (winner not centered in payline)
+
+**Root cause:** The spring animation (`Animated.spring`) decays asymptotically and leaves a tiny floating-point residual on Safari's CSS transform implementation. The winner logo lands a few subpixels off from the payline center.
+
+**Fix (components/SlotMachine.tsx):**
+- Replaced `Animated.spring(anims[i], { toValue: targetY, friction: 16, tension: 240 })` with `Animated.timing(anims[i], { toValue: targetY, duration: 280, easing: Easing.out(Easing.back(1.6)) })`.
+- A timing animation always ends exactly at `toValue` — no decay residual possible.
+- `Easing.out(Easing.back(1.6))` preserves the "settle into place with a slight overshoot" feel.
+- As belt-and-braces, `anims[i].setValue(reelData.targetY)` still fires immediately after the callback to guarantee integer pixel alignment.
+
+### Bug 3: Slot machine too small on desktop Safari
+
+**Root cause:** `cabinetW = Math.min(Math.round(measuredW * 0.96), 520)` — the 520 px hard cap caused the machine to be undersized on wide desktop screens.
+
+**Fix (components/SlotMachine.tsx):**
+- Raised the cap to 680 px: `Math.min(Math.round(measuredW * 0.96), 680)`.
+- Mobile screens are narrower than 680 px so the cap is never hit on phones — the visual change is desktop-only.
+
+---
+
+## 17. Quick-start handoff for a new coding agent
+
+### To resume work on the frontend (Expo web app):
+```
+Project: /Users/leemoore/Downloads/Celebration-Roulet/
+Live site: https://celebration-roulette.vercel.app
+GitHub: https://github.com/lmoorey2k/celebration-roulette
+Deploy: git push origin main → Vercel auto-deploys
+Build locally: npx expo export -p web (reads .env.local for API URL)
+Type-check: npx tsc --noEmit
+```
+
+### To resume work on the backend (Next.js API):
+```
+Project: /Users/leemoore/Downloads/celebration-backend/
+Live API: https://celebration-backend.vercel.app
+GitHub: https://github.com/lmoorey2k/celebration-backend
+Deploy: git push origin main → Vercel auto-deploys
+Run locally: npm run dev (reads .env.local for Supabase keys)
+```
+
+### Key invariants to preserve
+- Do NOT call `anims.forEach(a => a.setValue(0))` after a spin completes — reels must stay at their landed position.
+- Do NOT use `Animated.spring` for the reel landing step — use timing+back-easing to guarantee exact pixel alignment.
+- Audio unlock MUST happen synchronously inside the user-gesture call stack — never defer to `.then()`.
+- `EXPO_PUBLIC_API_URL` must be set in `.env.local` before building; it is baked in at build time.
+- Env vars are never committed to git (`.gitignore` covers `.env`, `.env.local`, `.env.*.local`).
