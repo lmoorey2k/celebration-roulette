@@ -8,9 +8,10 @@ import {
   Pressable,
   SafeAreaView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useRestaurantContext } from '@/context/RestaurantContext';
 import { RestaurantCard } from '@/components/RestaurantCard';
+import { CATEGORIES, type Category } from '@/components/CategoryFilter';
 import { Colors, FontSizes, Radii, Spacing } from '@/constants/theme';
 
 export default function ListScreen() {
@@ -19,14 +20,35 @@ export default function ListScreen() {
     useRestaurantContext();
   const [query, setQuery] = useState('');
 
+  // Receive the active category from the home screen so the list stays in sync.
+  const { category } = useLocalSearchParams<{ category?: string }>();
+  const activeCategory: Category = CATEGORIES.some((c) => c.key === category)
+    ? (category as Category)
+    : 'all';
+  const activeLabel = CATEGORIES.find((c) => c.key === activeCategory)?.label ?? 'All';
+
   const visible = useMemo(() => {
-    const all = restaurants
+    // Start with all active restaurants sorted alphabetically.
+    let base = restaurants
       .filter((r) => r.active)
       .sort((a, b) => a.name.localeCompare(b.name));
-    if (!query.trim()) return all;
+
+    // Apply the same strict category filter as the machine:
+    // only show restaurants explicitly tagged with this meal period.
+    if (activeCategory !== 'all') {
+      base = base.filter((r) => r.categories?.includes(activeCategory));
+    }
+
+    if (!query.trim()) return base;
     const q = query.toLowerCase();
-    return all.filter((r) => r.name.toLowerCase().includes(q));
-  }, [restaurants, query]);
+    return base.filter((r) => r.name.toLowerCase().includes(q));
+  }, [restaurants, query, activeCategory]);
+
+  // Count of spin-eligible restaurants for this category (matches the machine).
+  const categorySpinCount = useMemo(() => {
+    if (activeCategory === 'all') return spinPool.length;
+    return spinPool.filter((r) => r.categories?.includes(activeCategory)).length;
+  }, [spinPool, activeCategory]);
 
   const excludedCount = visible.filter((r) => r.session_excluded).length;
 
@@ -35,7 +57,9 @@ export default function ListScreen() {
       <View style={styles.container}>
         <View style={styles.searchRow}>
           <Text style={styles.kicker}>Visit Celebration Food & Drink</Text>
-          <Text style={styles.title}>Manage your spin list</Text>
+          <Text style={styles.title}>
+            {activeCategory === 'all' ? 'All restaurants' : `${activeLabel} restaurants`}
+          </Text>
           <TextInput
             style={styles.search}
             placeholder="Search restaurants…"
@@ -51,7 +75,7 @@ export default function ListScreen() {
 
         <View style={styles.statusRow}>
           <Text style={styles.statusText}>
-            {spinPool.length} in play · {excludedCount} excluded this session
+            {categorySpinCount} in play · {excludedCount} excluded this session
           </Text>
           {excludedCount > 0 && (
             <Pressable onPress={resetSession} hitSlop={8}>
@@ -78,7 +102,7 @@ export default function ListScreen() {
           onPress={() => router.back()}
           accessibilityRole="button"
         >
-          <Text style={styles.doneText}>Done — spin with {spinPool.length}</Text>
+          <Text style={styles.doneText}>Done — spin with {categorySpinCount}</Text>
         </Pressable>
       </View>
     </SafeAreaView>

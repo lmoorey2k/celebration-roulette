@@ -38,7 +38,11 @@ export default function HomeScreen() {
 
   const filteredPool = useMemo(() => {
     if (activeCategory === 'all') return spinPool;
-    return spinPool.filter((r) => !r.categories?.length || r.categories.includes(activeCategory));
+    // Strict tag match: only show restaurants explicitly tagged with this category.
+    // A restaurant tagged breakfast+lunch should NOT appear in dinner.
+    // Restaurants with no tags are excluded from all filtered categories
+    // (they only appear in "All") to avoid polluting specific meal filters.
+    return spinPool.filter((r) => r.categories?.includes(activeCategory));
   }, [spinPool, activeCategory]);
 
   const activeLabel = activeCategory === 'all'
@@ -119,7 +123,7 @@ export default function HomeScreen() {
               No restaurants in this category right now. Switch back to All dining or edit the list.
             </Text>
           )}
-          <Pressable onPress={() => router.push('/list')} style={styles.listLink} accessibilityRole="link">
+          <Pressable onPress={() => router.push({ pathname: '/list', params: { category: activeCategory } })} style={styles.listLink} accessibilityRole="link">
             <Text style={styles.listLinkText}>
               {filteredPool.length} restaurant{filteredPool.length !== 1 ? 's' : ''} in play • {activeLabel} • Manage list
             </Text>
