@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 
 let _ctx: AudioContext | null = null;
 let _resumePromise: Promise<void> | null = null;
+let _unlocked = false;
 
 function ctx(): AudioContext | null {
   if (Platform.OS !== 'web') return null;
@@ -30,18 +31,38 @@ export function resumeAudio(): Promise<void> {
   return _resumePromise;
 }
 
+// iOS / mobile Safari + mobile Chrome require the AudioContext to be unlocked
+// by starting a real (even silent) audio source from within a user-gesture
+// stack frame. Calling c.resume() alone is not enough on iOS — and on mobile
+// Chrome the autoplay policy similarly demands an explicit source.start() in
+// the gesture. We do both: resume() AND a 1-sample silent buffer the first
+// time we're invoked.
+function unlockAudio(c: AudioContext): void {
+  if (_unlocked) return;
+  try {
+    const buf = c.createBuffer(1, 1, 22050);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.connect(c.destination);
+    src.start(0);
+    _unlocked = true;
+  } catch {
+    // Swallow — we'll retry on the next gesture.
+  }
+}
+
 function playWhenReady(play: (c: AudioContext) => void): void {
   const c = ctx();
   if (!c) return;
 
-  // iOS Safari requires audio nodes to be created synchronously within a user
-  // gesture. Deferring to a .then() callback breaks out of the gesture context
-  // and Safari silently drops the audio. Instead: call resume() fire-and-forget
-  // (it returns a Promise we ignore) and immediately attempt to play — Safari
-  // will honour it because we're still in the synchronous gesture call stack.
+  // Resume synchronously (fire-and-forget) — must stay inside the user-gesture
+  // call stack on iOS Safari.
   if (c.state === 'suspended') {
     c.resume().catch(() => {});
   }
+  // Silent-buffer unlock — required by iOS Safari and mobile Chrome autoplay
+  // policy. After this fires once, future audio plays freely.
+  unlockAudio(c);
   play(c);
 }
 

@@ -255,11 +255,15 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
     data.forEach((reelData, i) => {
       Animated.sequence([
         Animated.timing(anims[i], { toValue: reelData.overshootY, duration: DURATIONS[profile(i)], easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.spring(anims[i], { toValue: reelData.targetY, friction: SPRING_F, tension: SPRING_T, useNativeDriver: true }),
+        // Was Animated.spring — springs leave a subpixel residual on Safari
+        // and don't guarantee an exact landing value. timing+back-easing
+        // gives the same "settle into place" feel but ALWAYS lands at exactly
+        // targetY, so the winner logo is pixel-perfectly centred in the payline.
+        Animated.timing(anims[i], { toValue: reelData.targetY, duration: 280, easing: Easing.out(Easing.back(1.6)), useNativeDriver: true }),
       ]).start(({ finished: ok }) => {
         if (!ok) return;
-        // Snap to exact pixel — spring leaves a subpixel residual on Safari
-        // that causes the winner logo to appear off-centre in the payline.
+        // Belt-and-braces: force exact pixel even if the JS animator left a
+        // floating-point residual on this platform.
         anims[i].setValue(reelData.targetY);
         clearReelTick(i);
         playReelStop();
