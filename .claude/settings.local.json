@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.visitcelebration.com)",
+      "WebSearch",
+      "mcp__Control_Chrome__open_url",
+      "mcp__Control_Chrome__get_page_content",
+      "WebFetch(domain:visitcelebration.org)"
+    ]
+  }
+}

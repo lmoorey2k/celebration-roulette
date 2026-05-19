@@ -1,0 +1,1040 @@
+{
+  "meta": {
+    "source_url": "https://visitcelebration.org/food-drink/",
+    "last_verified_at": "2026-04-23",
+    "total_records": 54
+  },
+  "restaurants": [
+    {
+      "id": 1,
+      "name": "Alma Argentina",
+      "address": "6266 W Irlo Bronson Memorial Hwy, Celebration, FL 34747",
+      "website_url": "https://almaargentina.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/bcf5131c-cd3f-44f9-a0aa-a391bce9caa7.avif",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "689-303-1043",
+      "menu_url": ""
+    },
+    {
+      "id": 2,
+      "name": "Ari Sushi",
+      "address": "671 Front Street #100, Celebration, FL 34747",
+      "website_url": "https://arisushicelebration.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/AriNewTransparent-300x300-1.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "407-580-9327",
+      "menu_url": ""
+    },
+    {
+      "id": 3,
+      "name": "Avocado Mexican Grill",
+      "address": "715 Bloom Street, Celebration, FL 34747",
+      "website_url": "https://avocadomexicangrill.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/avocado-logo-300x300-1.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "407-566-1212",
+      "menu_url": ""
+    },
+    {
+      "id": 4,
+      "name": "Bubbakoo's Burritos",
+      "address": "1705 Future Way, Celebration, FL 34747",
+      "website_url": "https://bubbakoos.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Screenshot-2025-09-15-at-6.20.36-PM.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "407-802-7004",
+      "menu_url": ""
+    },
+    {
+      "id": 5,
+      "name": "Buca di Beppo Italian Restaurant",
+      "address": "6282 W. Irlo Bronson Memorial Hwy, Celebration, FL 34747",
+      "website_url": "https://dineatbuca.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Buccabest.webp",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "321-219-2822",
+      "menu_url": ""
+    },
+    {
+      "id": 6,
+      "name": "Celebration Brewing Company",
+      "address": "1601 Future Way, Celebration, FL 34747",
+      "website_url": "https://celebrationbrewing.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/234781265_2917117781842874_2853352053843133637_n-Copy.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner",
+        "sip"
+      ],
+      "phone": "407-566-2337",
+      "menu_url": ""
+    },
+    {
+      "id": 7,
+      "name": "Celebration Town Tavern",
+      "address": "721 Front Street, Celebration, FL 34747",
+      "website_url": "https://thecelebrationtowntavern.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/tavern-1024x1024-300x300-1.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner",
+        "sip"
+      ],
+      "phone": "407-566-2526",
+      "menu_url": ""
+    },
+    {
+      "id": 8,
+      "name": "CFS Coffee For The Soul",
+      "address": "2171 Celebration Blvd, Celebration, FL 34747",
+      "website_url": "https://cfscoffee.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Coffee-for-the-Soul-2024-1.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "breakfast",
+        "sip"
+      ],
+      "phone": "407-271-9145",
+      "menu_url": ""
+    },
+    {
+      "id": 9,
+      "name": "Chick-fil-A",
+      "address": "6050 W Irlo Bronson Memorial Hwy, Celebration, FL 34747",
+      "website_url": "https://chick-fil-a.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Chick-fil-A-logo-scaled.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "breakfast",
+        "lunch",
+        "dinner"
+      ],
+      "phone": "407-566-9808",
+      "menu_url": ""
+    },
+    {
+      "id": 10,
+      "name": "Chipotle",
+      "address": "6210 W Irlo Bronson Memorial Hwy, Celebration, FL 34747",
+      "website_url": "https://chipotle.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Chipotle_Mexican_Grill_logo.svg_-e1775061699578.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "321-939-2059",
+      "menu_url": ""
+    },
+    {
+      "id": 11,
+      "name": "Cold Stone Creamery",
+      "address": "15 Blake Blvd, Celebration, FL 34747",
+      "website_url": "https://coldstonecreamery.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/ColdStone4.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "treats"
+      ],
+      "phone": "407-566-8651",
+      "menu_url": ""
+    },
+    {
+      "id": 12,
+      "name": "Columbia Restaurant",
+      "address": "649 Front Street, Celebration, FL 34747",
+      "website_url": "https://columbiarestaurant.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Columbia-Restaurant-logo-300x300-1.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "407-566-1505",
+      "menu_url": ""
+    },
+    {
+      "id": 13,
+      "name": "Dom Helio Pasta, Pizza & Grill",
+      "address": "1641 Future Way, Celebration, FL 34747",
+      "website_url": "https://domheliorestaurant.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2026/03/Screenshot-2026-03-17-at-2.54.36-PM.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "321-939-8990",
+      "menu_url": ""
+    },
+    {
+      "id": 14,
+      "name": "Domino's Pizza",
+      "address": "1579 Future Way, Celebration, FL 34747",
+      "website_url": "https://dominos.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Dominos-scaled.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": true,
+      "weight": 1,
+      "notes": "Delivery-focused — excluded by default, user can add back",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "617-990-2152",
+      "menu_url": ""
+    },
+    {
+      "id": 15,
+      "name": "Downtown Diner",
+      "address": "701 Front Street, Celebration, FL 34747",
+      "website_url": "https://downtowndinercelebration.net",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/DowntownDiner2-300x217-1.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "breakfast",
+        "lunch"
+      ],
+      "phone": "407-566-8696",
+      "menu_url": ""
+    },
+    {
+      "id": 16,
+      "name": "Dunkin / Baskin-Robbins",
+      "address": "6200 W. Irlo Bronson Memorial Highway, Celebration, FL 34747",
+      "website_url": "https://dunkindonuts.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/1-1-scaled.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "breakfast",
+        "sip",
+        "treats"
+      ],
+      "phone": "407-507-1509",
+      "menu_url": ""
+    },
+    {
+      "id": 17,
+      "name": "Fatburger",
+      "address": "1713 Future Way, Celebration, FL 34747",
+      "website_url": "https://fatburger.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/FatburgerNew.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "407-566-0100",
+      "menu_url": ""
+    },
+    {
+      "id": 18,
+      "name": "Five Guys",
+      "address": "6240 W Irlo Bronson Memorial Hwy #192, Celebration, FL 34747",
+      "website_url": "https://fiveguys.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/IMG_1426.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "407-566-8860",
+      "menu_url": ""
+    },
+    {
+      "id": 19,
+      "name": "Fortuna Bakery",
+      "address": "606 Market St #110, Celebration, FL 34747",
+      "website_url": "https://fortunabakery.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Fortuna-Logo-for-website-300x300-1.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "breakfast",
+        "lunch",
+        "treats"
+      ],
+      "phone": "321-939-1198",
+      "menu_url": ""
+    },
+    {
+      "id": 20,
+      "name": "Gypsy Moon",
+      "address": "605 Market St #140, Celebration, FL 34747",
+      "website_url": "https://gypsymoonmarket.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/GypsyMoon2.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "breakfast",
+        "lunch"
+      ],
+      "phone": "407-566-8887",
+      "menu_url": ""
+    },
+    {
+      "id": 21,
+      "name": "Jeff's Bagel Run",
+      "address": "1587 Future Way, Celebration, FL 34747",
+      "website_url": "https://jeffsbagelrun.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Jeffs-Bagel-2-scaled.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "breakfast",
+        "lunch"
+      ],
+      "phone": "321-939-4396",
+      "menu_url": ""
+    },
+    {
+      "id": 22,
+      "name": "Jeremiah's Italian Ice",
+      "address": "1679 Future Way, Celebration, FL 34747",
+      "website_url": "https://jeremiahsice.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Jeremiah.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "treats"
+      ],
+      "phone": "321-939-45412",
+      "menu_url": ""
+    },
+    {
+      "id": 23,
+      "name": "Jersey Mike's Subs",
+      "address": "1651 Future Way, Celebration, FL 34747",
+      "website_url": "https://jerseymikes.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Jersey_Mikes_logo.svg_.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "732-948-9223",
+      "menu_url": ""
+    },
+    {
+      "id": 24,
+      "name": "Kilwin's",
+      "address": "671 Front St, Suite 140, Celebration, FL 34747",
+      "website_url": "https://kilwins.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/kilwins_2-1024x1024-300x300-1.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "treats"
+      ],
+      "phone": "407-566-8555",
+      "menu_url": ""
+    },
+    {
+      "id": 25,
+      "name": "Kitanda Coffee & Acai",
+      "address": "1591 Future Way, Celebration, FL 34747",
+      "website_url": "https://kitanda.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/LogoKitandaFinal-Black_ClearBackground.webp",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "breakfast",
+        "sip"
+      ],
+      "phone": "",
+      "menu_url": ""
+    },
+    {
+      "id": 26,
+      "name": "Lakeside Kitchen & Bar",
+      "address": "700 Bloom Street, Celebration, FL 34747",
+      "website_url": "https://lakesidekitchenandbar.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/09/LKB_primary-logo_BLK@2x.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "Located at Inn at Celebration",
+      "categories": [
+        "breakfast",
+        "lunch",
+        "dinner"
+      ],
+      "phone": "407-566-6000",
+      "menu_url": ""
+    },
+    {
+      "id": 27,
+      "name": "Le China",
+      "address": "37 Blake Blvd, Celebration, FL 34747",
+      "website_url": "https://lechina68.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Le-China-Restaurant-logo-design-e1776174322103.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "321-939-2462",
+      "menu_url": ""
+    },
+    {
+      "id": 28,
+      "name": "Le Macaron",
+      "address": "671 Front St #110, Celebration, FL 34747",
+      "website_url": "https://lemacaron-us.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/lemacaron-1024x1024-300x300-1.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "treats"
+      ],
+      "phone": "321-525-0289",
+      "menu_url": ""
+    },
+    {
+      "id": 29,
+      "name": "Little Greek Fresh Grill",
+      "address": "45 Blake Blvd, Celebration, FL 34747",
+      "website_url": "https://littlegreekfreshgrill.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/LittleCGreek.avif",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "407-566-4736",
+      "menu_url": ""
+    },
+    {
+      "id": 30,
+      "name": "Lucky Goat Coffee",
+      "address": "56 Riley Road, Celebration, FL 34747",
+      "website_url": "https://luckygoatcoffee.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2026/03/Lucky-Goat.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "breakfast",
+        "sip"
+      ],
+      "phone": "407-408-9264",
+      "menu_url": ""
+    },
+    {
+      "id": 31,
+      "name": "Maple Street Biscuit Company",
+      "address": "6268 W Irlo Bronson Memorial Hwy, Celebration, FL 34747",
+      "website_url": "https://maplestreetbiscuits.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/MapleStreet-e1775061639715.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "breakfast",
+        "lunch"
+      ],
+      "phone": "321-939-1311",
+      "menu_url": ""
+    },
+    {
+      "id": 32,
+      "name": "McDonald's",
+      "address": "1720 Celebration Blvd, Celebration, FL 34747",
+      "website_url": "https://mcdonalds.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/mcdonalds-logo-1.webp",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "breakfast",
+        "lunch",
+        "dinner"
+      ],
+      "phone": "321-939-4152",
+      "menu_url": ""
+    },
+    {
+      "id": 33,
+      "name": "Mulligan's Pub",
+      "address": "39 Blake Blvd, Celebration, FL 34747",
+      "website_url": "https://mulliganscelebration.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Mulligans.avif",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner",
+        "sip"
+      ],
+      "phone": "407-566-0501",
+      "menu_url": ""
+    },
+    {
+      "id": 34,
+      "name": "Panera Bread",
+      "address": "51 Celebration Place, Celebration, FL 34747",
+      "website_url": "https://panerabread.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Panera.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "breakfast",
+        "lunch"
+      ],
+      "phone": "321-939-1226",
+      "menu_url": ""
+    },
+    {
+      "id": 35,
+      "name": "Peach Valley Café",
+      "address": "1683 Future Way, Celebration, FL 34747",
+      "website_url": "https://peachvalleycafe.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/PeachValley4.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "breakfast",
+        "lunch"
+      ],
+      "phone": "301-643-0233",
+      "menu_url": ""
+    },
+    {
+      "id": 36,
+      "name": "Pei Wei Asian Kitchen",
+      "address": "6250 W Irlo Bronson Memorial Hwy, Celebration, FL 34747",
+      "website_url": "https://peiwei.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/1-scaled.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "239-220-3085",
+      "menu_url": ""
+    },
+    {
+      "id": 37,
+      "name": "Pokemoto Celebration",
+      "address": "1629 Future Way, Celebration, FL 34747",
+      "website_url": "https://pokemoto.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Pokemoro.webp",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "321-939-4394",
+      "menu_url": ""
+    },
+    {
+      "id": 38,
+      "name": "Posto Pizza",
+      "address": "41 Blake Blvd, Celebration, FL 34747",
+      "website_url": "https://postopizza.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/image-14-e1775061973258.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "407-257-5938",
+      "menu_url": ""
+    },
+    {
+      "id": 39,
+      "name": "Publix at Celebration Pointe",
+      "address": "1723 Future Way, Celebration, FL 34747",
+      "website_url": "https://publix.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/09/PUBLIXC_363.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": true,
+      "weight": 1,
+      "notes": "Grocery store — excluded by default, user can add back",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "321-939-1258",
+      "menu_url": ""
+    },
+    {
+      "id": 40,
+      "name": "Publix at Water Tower Shoppes",
+      "address": "29 Blake Blvd, Kissimmee, FL 34747",
+      "website_url": "https://publix.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/09/PUBLIXC_363.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": true,
+      "weight": 1,
+      "notes": "Grocery store — excluded by default, user can add back",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "321-939-3100",
+      "menu_url": ""
+    },
+    {
+      "id": 41,
+      "name": "Reggiano's of Celebration",
+      "address": "691 Front Street, Celebration, FL 34747",
+      "website_url": "https://reggianosofcelebration.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Reggianos3-300x300.jpg.bv_.webp",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "321-378-8080",
+      "menu_url": ""
+    },
+    {
+      "id": 42,
+      "name": "Scoop Ice Cream",
+      "address": "2155 Celebration Blvd, Celebration, FL 34747",
+      "website_url": "https://scoop-celebration.square.site",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/image-15-e1775061992352.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "treats"
+      ],
+      "phone": "828-980-4999",
+      "menu_url": ""
+    },
+    {
+      "id": 43,
+      "name": "7-Eleven",
+      "address": "1730 Celebration Blvd, Celebration, FL 34747",
+      "website_url": "https://7-eleven.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/7-eleven_logo.svg_.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": true,
+      "weight": 1,
+      "notes": "Convenience store — excluded by default, user can add back",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "321-408-7415",
+      "menu_url": ""
+    },
+    {
+      "id": 44,
+      "name": "Slim Chickens",
+      "address": "1525 Future Way, Celebration, FL 34747",
+      "website_url": "https://slimchickens.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Slim-Chickens.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "407-715-2596",
+      "menu_url": ""
+    },
+    {
+      "id": 45,
+      "name": "Starbucks",
+      "address": "715 Bloom Street, Celebration, FL 34747",
+      "website_url": "https://starbucks.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Starbucks1-300x300-1.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "breakfast",
+        "sip"
+      ],
+      "phone": "321-939-3200",
+      "menu_url": ""
+    },
+    {
+      "id": 46,
+      "name": "Tacos Don Andres",
+      "address": "2179 Celebration Blvd, Celebration, FL 34747",
+      "website_url": "https://tacosdonandres.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/TacosDon.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "321-939-0400",
+      "menu_url": ""
+    },
+    {
+      "id": 47,
+      "name": "Thai Thani",
+      "address": "600 Market St #110, Celebration, FL 34747",
+      "website_url": "https://thaithanifl.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/ThaiThani-e1775474588194.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "407-902-7461",
+      "menu_url": ""
+    },
+    {
+      "id": 48,
+      "name": "The Great Greek",
+      "address": "1575 Future Way D5, Celebration, FL 34747",
+      "website_url": "https://thegreatgreekgrill.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/GreatGreek.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "321-404-7350",
+      "menu_url": ""
+    },
+    {
+      "id": 49,
+      "name": "The New York Bakery Boys",
+      "address": "603 Market St #110, Celebration, FL 34747",
+      "website_url": "https://nybakeryboys.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Bakery-Boys-for-Web_edited-300x300-1.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "breakfast",
+        "lunch",
+        "treats"
+      ],
+      "phone": "321-939-4416",
+      "menu_url": ""
+    },
+    {
+      "id": 50,
+      "name": "The Wilson",
+      "address": "225 Celebration Place, Celebration, FL 34747",
+      "website_url": "https://eatatthewilson.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/TheWilson_Logo_NEW-Tagline-Black-Rez.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "Located at Melia hotel",
+      "categories": [
+        "breakfast",
+        "lunch",
+        "dinner"
+      ],
+      "phone": "407-964-3258",
+      "menu_url": ""
+    },
+    {
+      "id": 51,
+      "name": "The Wine Imperium",
+      "address": "606 Market Street, Ste. 140, Celebration, FL 34747",
+      "website_url": "https://thewineimperium.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/WineIMperium-Logo-2025-300x300-1.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "sip"
+      ],
+      "phone": "407-693-2661",
+      "menu_url": ""
+    },
+    {
+      "id": 52,
+      "name": "Tropical Smoothie Cafe",
+      "address": "54 Riley Rd, Celebration, FL 34747",
+      "website_url": "https://tropicalsmoothiecafe.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/images.jpg",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "breakfast",
+        "sip"
+      ],
+      "phone": "407-566-8636",
+      "menu_url": ""
+    },
+    {
+      "id": 53,
+      "name": "Upper Crust",
+      "address": "606 Market St #160, Celebration, FL 34747",
+      "website_url": "https://uppercrustpizzacafe.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/uppercrust-300x300-1.png",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "",
+      "categories": [
+        "lunch",
+        "dinner"
+      ],
+      "phone": "407-566-1221",
+      "menu_url": ""
+    },
+    {
+      "id": 54,
+      "name": "Windmill Restaurant",
+      "address": "701 Golfpark Dr, Kissimmee, FL 34747",
+      "website_url": "https://celebrationgolf.com",
+      "source_url": "https://visitcelebration.org/food-drink/",
+      "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/09/Windmill-rest.webp",
+      "active": true,
+      "eligible_for_wheel": true,
+      "default_excluded": false,
+      "weight": 1,
+      "notes": "Located at Celebration Golf Club",
+      "categories": [
+        "breakfast",
+        "lunch",
+        "dinner"
+      ],
+      "phone": "407-566-4653",
+      "menu_url": ""
+    }
+  ]
+}
