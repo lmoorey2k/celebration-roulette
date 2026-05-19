@@ -34,14 +34,14 @@ function playWhenReady(play: (c: AudioContext) => void): void {
   const c = ctx();
   if (!c) return;
 
+  // iOS Safari requires audio nodes to be created synchronously within a user
+  // gesture. Deferring to a .then() callback breaks out of the gesture context
+  // and Safari silently drops the audio. Instead: call resume() fire-and-forget
+  // (it returns a Promise we ignore) and immediately attempt to play — Safari
+  // will honour it because we're still in the synchronous gesture call stack.
   if (c.state === 'suspended') {
-    resumeAudio().then(() => {
-      const ready = ctx();
-      if (ready && ready.state !== 'suspended') play(ready);
-    });
-    return;
+    c.resume().catch(() => {});
   }
-
   play(c);
 }
 

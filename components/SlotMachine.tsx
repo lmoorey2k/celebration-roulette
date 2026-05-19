@@ -157,7 +157,9 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
 ) {
   const { width: screenW } = useWindowDimensions();
   const measuredW  = screenW > 0 ? screenW : 390;
-  const cabinetW   = Math.min(Math.round(measuredW * 0.96), 520);
+  // On desktop (wide screens) allow up to 680 px so the machine doesn't look
+  // tiny; mobile screens are narrower than 680 px anyway so the cap is never hit.
+  const cabinetW   = Math.min(Math.round(measuredW * 0.96), 680);
   const cabinetH   = Math.round(cabinetW / CABINET_ASPECT);
 
   const reelLeft   = Math.round(cabinetW * 0.184);
@@ -256,6 +258,9 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
         Animated.spring(anims[i], { toValue: reelData.targetY, friction: SPRING_F, tension: SPRING_T, useNativeDriver: true }),
       ]).start(({ finished: ok }) => {
         if (!ok) return;
+        // Snap to exact pixel — spring leaves a subpixel residual on Safari
+        // that causes the winner logo to appear off-centre in the payline.
+        anims[i].setValue(reelData.targetY);
         clearReelTick(i);
         playReelStop();
         finished += 1;
