@@ -184,7 +184,11 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
 
   const spinButtonW   = Math.max(146, Math.round(cabinetW * 0.34));
   const spinButtonH   = Math.max(42,  Math.round(cabinetH * 0.048));
-  const spinButtonTop = Math.round(cabinetH * 0.812);
+  // On desktop web (cabinetW hits the 680px cap) the button sits too high
+  // in the green panel due to how the browser lays out the cabinet image.
+  // Mobile never reaches 680px so this nudge is desktop-only.
+  const spinButtonTopRatio = Platform.OS === 'web' && cabinetW >= 680 ? 0.845 : 0.812;
+  const spinButtonTop = Math.round(cabinetH * spinButtonTopRatio);
 
   const anims    = useRef(Array.from({ length: NUM_REELS }, () => new Animated.Value(0))).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -371,7 +375,7 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
           style={[styles.spinButton, !canSpin && styles.spinButtonDisabled, { top: spinButtonTop, left: Math.round((cabinetW - spinButtonW) / 2), width: spinButtonW, minHeight: spinButtonH, borderRadius: Math.round(spinButtonH / 2) }]}
           accessibilityRole="button" accessibilityLabel="Spin for a dining pick"
         >
-          <Text style={styles.spinButtonText}>{pool.length < 2 ? 'NO PICKS' : 'SPIN'}</Text>
+          <Text style={styles.spinButtonText}>{pool.length < 2 ? 'NO PICKS' : spinLabel}</Text>
         </Pressable>
       </View>
     </View>

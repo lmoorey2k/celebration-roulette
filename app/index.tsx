@@ -141,6 +141,7 @@ export default function HomeScreen() {
             activeCategory={activeCategory}
             onCategoryChange={setActiveCategory}
             shouldWinChickFilA={shouldWinChickFilA}
+            spinLabel={spinState === 'result' ? 'SPIN AGAIN' : 'SPIN'}
           />
         </View>
 
@@ -148,10 +149,7 @@ export default function HomeScreen() {
             Suppressed on the Sunday Chick-fil-A Easter egg; SundayClosedOverlay
             takes over the full screen with a dramatic reveal instead. */}
         {spinState === 'result' && winner && !(winner.id === CHICK_FIL_A_ID && isSundayOrForced()) && (
-          <WinnerCard
-            winner={winner}
-            onSpinAgain={handleSpinAgain}
-          />
+          <WinnerCard winner={winner} />
         )}
 
         <View style={styles.footer}>
@@ -180,7 +178,7 @@ export default function HomeScreen() {
 
 // ─── Winner card ──────────────────────────────────────────────────────────────
 
-function WinnerCard({ winner, onSpinAgain }: { winner: Restaurant; onSpinAgain: () => void }) {
+function WinnerCard({ winner }: { winner: Restaurant }) {
   const slideAnim = useRef(new Animated.Value(48)).current;
   const fadeAnim  = useRef(new Animated.Value(0)).current;
 
@@ -253,14 +251,6 @@ function WinnerCard({ winner, onSpinAgain }: { winner: Restaurant; onSpinAgain: 
         ) : null}
       </View>
 
-      {/* Spin again — beneath the card, understated */}
-      <Pressable
-        onPress={onSpinAgain}
-        style={({ pressed }) => [wStyles.spinAgain, pressed && wStyles.spinAgainPressed]}
-        accessibilityRole="button"
-      >
-        <Text style={wStyles.spinAgainText}>↺  Spin again</Text>
-      </Pressable>
     </Animated.View>
   );
 }
@@ -471,17 +461,6 @@ const wStyles = StyleSheet.create({
     backgroundColor: Colors.backgroundAlt,
   },
   tertiaryText: { color: Colors.textPrimary, fontSize: FontSizes.lg, fontWeight: '700' },
-  spinAgain: {
-    alignSelf: 'center',
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-  },
-  spinAgainPressed: { opacity: 0.6 },
-  spinAgainText: {
-    color: Colors.textSecondary,
-    fontSize: FontSizes.sm,
-    fontWeight: '700',
-  },
   pressed: { opacity: 0.82, transform: [{ scale: 0.985 }] },
 });
 
