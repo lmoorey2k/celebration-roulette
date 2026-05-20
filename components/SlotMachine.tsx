@@ -187,7 +187,7 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
   // On desktop web (cabinetW hits the 680px cap) the button sits too high
   // in the green panel due to how the browser lays out the cabinet image.
   // Mobile never reaches 680px so this nudge is desktop-only.
-  const spinButtonTopRatio = Platform.OS === 'web' && cabinetW >= 680 ? 0.845 : 0.812;
+  const spinButtonTopRatio = Platform.OS === 'web' && cabinetW >= 680 ? 0.827 : 0.812;
   const spinButtonTop = Math.round(cabinetH * spinButtonTopRatio);
 
   const anims    = useRef(Array.from({ length: NUM_REELS }, () => new Animated.Value(0))).current;
