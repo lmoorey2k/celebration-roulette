@@ -4,6 +4,13 @@ let _ctx: AudioContext | null = null;
 let _resumePromise: Promise<void> | null = null;
 let _unlocked = false;
 
+// ─── Sunday detection ────────────────────────────────────────────────────────
+// Returns true when the user's device local time falls on a Sunday.
+// Used by the Chick-fil-A Sunday Easter egg in app/index.tsx.
+export function isSunday(): boolean {
+  return new Date().getDay() === 0;
+}
+
 function ctx(): AudioContext | null {
   if (Platform.OS !== 'web') return null;
   if (typeof window === 'undefined') return null;
@@ -220,6 +227,46 @@ export function playCelebration(): void {
       g.connect(c.destination);
       osc.start(chordStart);
       osc.stop(chordStart + 0.6);
+    });
+  });
+}
+
+// ─── Sad trombone — "wah-wah-waaah" ──────────────────────────────────────────
+// Classic "you lose" descending notes. Used for the Chick-fil-A-on-Sunday
+// Easter egg: even though they "won", the joke is they can't go.
+// Three descending sawtooth notes with a slight pitch bend on the last one,
+// evoking a muted trombone glissando down.
+export function playSadTrombone(): void {
+  playWhenReady((c) => {
+    const now = c.currentTime;
+    // Three descending notes — A3, F3, D3-ish — sawtooth for buzzy trombone tone
+    const notes = [
+      { freq: 220.0, t: 0.00,  dur: 0.22 }, // wah
+      { freq: 174.6, t: 0.22,  dur: 0.22 }, // wah
+      { freq: 146.8, t: 0.46,  dur: 0.55 }, // waaah (longer, with pitch bend)
+    ];
+
+    notes.forEach((n, i) => {
+      const start = now + n.t;
+      const osc   = c.createOscillator();
+      const gain  = c.createGain();
+      osc.type    = 'sawtooth';
+      osc.frequency.setValueAtTime(n.freq, start);
+
+      // Final note bends down a half-step for that classic trombone slide
+      if (i === notes.length - 1) {
+        osc.frequency.exponentialRampToValueAtTime(n.freq * 0.85, start + n.dur);
+      }
+
+      // Quick attack, slow decay — gives it the "vocal" wah-wah character
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.32, start + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + n.dur);
+
+      osc.connect(gain);
+      gain.connect(c.destination);
+      osc.start(start);
+      osc.stop(start + n.dur + 0.05);
     });
   });
 }
