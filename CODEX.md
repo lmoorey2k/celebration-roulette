@@ -719,6 +719,53 @@ Three cross-browser bugs were identified after live testing at `https://celebrat
 
 ---
 
+## 19. 2026-05-20 — Embedding, URL fixes, maps behavior, admin logo fetch, header cleanup
+
+### iframe embedding enabled
+- `vercel.json` now sets `X-Frame-Options: ALLOWALL` and `Content-Security-Policy: frame-ancestors *`
+- The app can be embedded on visitcelebration.org (or anywhere) via a plain `<iframe>` tag
+- Recommended placement: top of the `/food-drink/` page, before the alphabetical restaurant listing
+- iframe snippet to hand to the Visit Celebration team:
+  ```html
+  <div style="text-align:center;margin:2rem 0;">
+    <iframe src="https://celebration-roulette.vercel.app" width="100%" height="780"
+      style="border:none;border-radius:16px;max-width:560px;display:block;margin:0 auto;"
+      title="Celebration Restaurant Roller" loading="lazy" allow="autoplay"></iframe>
+  </div>
+  ```
+
+### iOS maps fix (`utils/maps.ts`)
+- Previous bug: app always used Google Maps on web because `Platform.OS === 'web'` bypassed the iOS branch
+- Fix: `isIOSDevice()` helper sniffs `navigator.userAgent` for iPad/iPhone/iPod on web
+- iOS users (Safari, Chrome on iPhone) now get `maps://` which opens their default maps app
+- Android and desktop web still get Google Maps URL
+
+### Restaurant data fixes (Supabase + `data/restaurants.json`)
+- **Dom Helio** (id 13): logo_url was a dead 404 URL (March screenshot). Updated to the correct April 2026 upload: `DomHelioReversed.png`
+- **Panera Bread** (id 34): base domain `panerabread.com` was unreachable. Changed to the Celebration location page URL
+- **Peach Valley Café** (id 35): changed to location-specific URL `/celebration`
+- **The Great Greek** (id 48): changed to location-specific URL `/celebration-fl`
+- **Windmill Restaurant** (id 54): changed from golf club homepage to `/restaurant/` page per owner request
+- All fixes applied to both Supabase (live) and `data/restaurants.json` (fallback)
+
+### Admin panel: logo auto-fetch (`celebration-backend`)
+- New API route: `GET /api/fetch-logo?url=<visitcelebration.org/business-directory/...>`
+  - Admin-auth required (cookie `admin_session`)
+  - Only accepts `visitcelebration.org` URLs (SSRF prevention)
+  - Fetches the page server-side, parses `wpbdp-thumbnail` srcset, returns largest image URL
+- Admin EditForm (`pages/admin/index.tsx`) updated:
+  - Logo URL field now spans full width
+  - "Fetch Logo" button below it: paste a business-directory URL, click/Enter → logo_url auto-fills
+  - Live logo preview renders below the field after fetch or manual entry
+
+### Header cleanup (`app/index.tsx`)
+- Removed the Visit Celebration logo image that appeared above the machine (redundant when embedded on visitcelebration.org; the cabinet already carries the brand)
+- "Where should we dine?" title: color changed from near-black (`textPrimary`) to brand green (`Colors.primary`) — consistent with category pills
+- Hint text: updated from "Choose a category and let the machine make the pick." to "Pick a category and let the reels decide." — more slot-machine-appropriate
+- Hint text color: changed from steel blue (`textSecondary`) to neutral gray (`textMuted`) — no more three mismatched colors above the machine
+
+---
+
 ## 17. Quick-start handoff for a new coding agent
 
 ### To resume work on the frontend (Expo web app):
@@ -746,3 +793,120 @@ Run locally: npm run dev (reads .env.local for Supabase keys)
 - Audio unlock MUST happen synchronously inside the user-gesture call stack — never defer to `.then()`.
 - `EXPO_PUBLIC_API_URL` must be set in `.env.local` before building; it is baked in at build time.
 - Env vars are never committed to git (`.gitignore` covers `.env`, `.env.local`, `.env.*.local`).
+
+---
+
+## 18. 2026-05-19 — Sunday Easter egg: Chick-fil-A guaranteed first-spin win + full-screen takeover
+
+### Feature overview
+On any Sunday, the **first spin of the session guarantees Chick-fil-A wins**, even though the reel animation appears random. When Chick-fil-A lands, instead of the normal celebration sound, a sad trombone plays. A full-screen dramatic overlay then covers the entire app with a dark blurred backdrop, a bold cream-colored card, a large dimmed Chick-fil-A logo, a red "CLOSED TODAY" rubber stamp that slams in with a wobble, and the joke message: "You ALWAYS want Chick-fil-A on a Sunday. It never fails. 🐔 Sorry — it's closed today 😅"
+
+The feature resets daily — the next Sunday, the first spin is rigged again. Subsequent spins on the same day are fully random. Weekday spins are never affected.
+
+### Design evolution
+- **v1 (initial approach):** Small card overlay positioned at the bottom of the screen with a simple closed message and button. User feedback: "too subtle, not exciting enough."
+- **v2 (final):** Full-screen takeover with dark blurred backdrop (`rgba(8,32,26,0.82)`), large bold headline, dimmed logo, dramatic red stamp slam animation (scale 3×→1× over ~150ms after 380ms delay), and card wobble shake synchronized with stamp landing. Much more delightful and memorable.
+
+### Implementation details
+
+#### `utils/audio.ts`
+- **`isSunday()`** helper function that returns `new Date().getDay() === 0` — uses device local time for timezone awareness.
+- **`playSadTrombone()`** function using Web Audio API:
+  - Three descending sawtooth notes (A3→F3→D3-ish over ~1 second).
+  - Quick attack, slow decay envelope for "vocal wah-wah" character.
+  - Final note bends down 15% for trombone glissando effect.
+  - Called instead of `playCelebration()` when Chick-fil-A wins on Sunday.
+
+#### `components/SlotMachine.tsx`
+- **New prop:** `shouldWinChickFilA?: boolean;` — signals when to rig the spin.
+- **Rigging logic** in `handleSpin()` callback (~line 226):
+  ```typescript
+  const chickFilA = shouldWinChickFilA && pool.some(r => r.id === 9) ? pool.find(r => r.id === 9) : null;
+  const picked = chickFilA ?? pool[Math.floor(Math.random() * pool.length)];
+  ```
+  Guarantees Chick-fil-A is selected as `picked` before animation timing is calculated. The reel animation still looks completely random — the rigging is invisible.
+
+#### `app/index.tsx`
+- **`CHICK_FIL_A_ID = 9`** constant (restaurant ID from `data/restaurants.json`).
+- **`isSundayOrForced()`** helper that checks both `isSunday()` AND for `?testSunday=1` URL param. Enables testing without changing system time.
+- **`sundayFirstSpinDone`** state (boolean) tracks whether the rigged first spin has been used this session. Resets to `false` at component unmount and also when a spin completes and the day changes (checked in `handleSpinStart`).
+- **`shouldWinChickFilA`** computed value:
+  ```typescript
+  const shouldWinChickFilA = isSundayOrForced() && !sundayFirstSpinDone && !!spinPool.find(r => r.id === 9);
+  ```
+  Only true on Sunday, before first spin, and when Chick-fil-A is in the current pool (respects category filters).
+- **Modified `handleSpinStart()`:** Sets `sundayFirstSpinDone = true` when about to do the rigged spin.
+- **Modified `handleSpinComplete()`:** Checks if Chick-fil-A (id 9) won on Sunday → calls `playSadTrombone()` instead of `playCelebration()`.
+- **Suppressed `WinnerCard`** when `SundayClosedOverlay` is showing to avoid duplicate UI.
+- **`SundayClosedOverlay` component** (placed above `HomeScreen` function):
+  - **Backdrop**: `StyleSheet.absoluteFill` + dark tint `rgba(8,32,26,0.82)` for full-screen coverage with slight blur effect (web-only via `backdropFilter: 'blur(2px)'`).
+  - **Card**: Cream-colored rounded container with thick green border (3px) + gold inner accent (1px).
+  - **Eyebrow**: Red text "ADMIT IT..." in small caps.
+  - **Headline**: "You ALWAYS want Chick-fil-A on a Sunday." (bold, large).
+  - **Subheadline**: "It never fails. 🐔" (supporting message).
+  - **Logo box**: Large dimmed Chick-fil-A logo at 45% opacity as visual anchor.
+  - **Red stamp**: "CLOSED TODAY" rubber-stamp text with skew + shadow, initially scaled to 3×.
+  - **Stamp animation**: Scales from 3× → 1× over ~150ms, starting 380ms after card mounts. Uses spring animation for snappy landing feel.
+  - **Card shake**: Simultaneous wobble on the card (translateX ±3% or ~10px) during stamp slam for comedic impact.
+  - **Bottom message**: "Sorry — it's closed today 😅" in gray text below logo.
+  - **Spin Again button**: Bold green button ("🎰 Spin Again") that calls `onSpinAgain()` to start a new spin (dismisses overlay instantly).
+- **Animation choreography**:
+  1. Card scales from 0.6 → 1 with spring (friction 6, tension 100) over ~460ms.
+  2. Backdrop fades from 0 → 1 in parallel (260ms timing for quick appearance).
+  3. 380ms after card mounts, stamp slides in with scale 3→1 spring and card shakes (3 wobble cycles).
+  4. All animations use `useNativeDriver: true` for smooth 60fps performance.
+
+### Testing the feature
+
+#### Quick test: with `?testSunday=1` URL param
+```
+https://celebration-roulette.vercel.app?testSunday=1
+```
+1. Load the app with this param.
+2. Tap SPIN.
+3. Watch reels — Chick-fil-A **always** lands in center.
+4. Sad trombone plays (not celebration).
+5. Full-screen overlay appears with dramatic stamp slam.
+6. Tapping "Spin Again" dismisses overlay and does a normal random spin.
+
+#### Proper test: set device to a Sunday
+1. Set device date/time to a Sunday (macOS: System Settings → Date & Time → Set manually).
+2. Restart the app.
+3. First spin → Chick-fil-A wins with sad trombone and overlay.
+4. Second spin → fully random (no overlay).
+5. Set device back to Monday → app works normally.
+6. Set device forward to next Sunday → first spin is rigged again (feature resets daily).
+
+### Key design decisions
+
+1. **Invisible rigging** — The animation looks completely random. By the time users see the result, they believe the reels landed naturally. It's a delightful surprise, not obviously fake.
+
+2. **Session-level state** — The `sundayFirstSpinDone` flag resets when the component unmounts. This means:
+   - First load on Sunday → rigged spin.
+   - After spin, hard-refresh page → rigged spin again (flag is gone).
+   - App in background for 24+ hours → when reopened, new day → flag auto-resets.
+   - Acceptable for a fun Easter egg (could add `localStorage` persistence for true "once per calendar day" if desired).
+
+3. **Respects category filters** — If someone is in "breakfast" category and Chick-fil-A is not tagged as breakfast, the rigging won't trigger. Checks `spinPool.find(r => r.id === 9)` to ensure Chick-fil-A is available in current pool before rigging.
+
+4. **Testing URL param** — `?testSunday=1` overrides the Sunday check so developers/testers don't have to change system time.
+
+5. **Dark blurred backdrop** — Creates a theatrical "moment" effect, focusing attention entirely on the joke. The blur is CSS-only on web; React Native doesn't support blur so it's a simple solid backdrop on native.
+
+6. **Sad trombone over celebration** — Subverts the expectation of a joyful win. Users won the jackpot (Chick-fil-A!) but the punchline is immediate disappointment. The sound + message + overlay work together to land the joke.
+
+### Files involved
+- `utils/audio.ts` — `isSunday()`, `playSadTrombone()`
+- `components/SlotMachine.tsx` — `shouldWinChickFilA` prop, rigging logic
+- `app/index.tsx` — state tracking, `SundayClosedOverlay` component, animation choreography, sound dispatch
+
+### Edge cases handled
+1. **Chick-fil-A filtered out** — If the current category doesn't include Chick-fil-A, the rigging silently doesn't trigger (graceful fallback).
+2. **Pool changes mid-session** — `shouldWinChickFilA` is recalculated each render, so if Chick-fil-A is added/removed from the pool after first spin, subsequent spins remain random (correct behavior).
+3. **Component unmount** — State resets, so reloading the app resets the daily flag (acceptable for session-level feature).
+4. **Cross-timezone** — Uses `new Date().getDay()` (device local time), so Sunday is based on the user's timezone, not UTC (desired behavior).
+
+### Rollout & observability
+- Feature is live at `https://celebration-roulette.vercel.app` and deployed via `git push origin main`.
+- Can be toggled off by removing `isSunday() &&` checks or setting `shouldWinChickFilA={false}` in code.
+- Test param `?testSunday=1` is safe to leave in code — it's harmless and useful for future QA.
