@@ -58,6 +58,32 @@ function unlockAudio(c: AudioContext): void {
   }
 }
 
+// ─── iOS touch unlock ─────────────────────────────────────────────────────────
+// React's synthetic event system breaks the "direct user gesture" chain that
+// iOS WebKit requires for AudioContext.resume(). Listening at the capture phase
+// on touchstart/touchend fires synchronously before React sees the event,
+// guaranteeing we're inside a real gesture stack frame — the only context iOS
+// will accept for audio unlock.
+function setupIOSTouchUnlock(): void {
+  if (typeof document === 'undefined') return;
+
+  const unlock = () => {
+    const c = ctx();
+    if (!c) return;
+    c.resume().catch(() => {});
+    unlockAudio(c);
+    document.removeEventListener('touchstart', unlock, true);
+    document.removeEventListener('touchend', unlock, true);
+  };
+
+  document.addEventListener('touchstart', unlock, true);
+  document.addEventListener('touchend', unlock, true);
+}
+
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  setupIOSTouchUnlock();
+}
+
 function playWhenReady(play: (c: AudioContext) => void): void {
   const c = ctx();
   if (!c) return;
