@@ -126,19 +126,10 @@ export default function HomeScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.hero}>
-          <Image
-            source={{ uri: 'https://visitcelebration.org/wp-content/uploads/2025/09/VISIT-CELEBRATION-LOGO-green.png' }}
-            style={styles.headerLogo}
-            resizeMode="contain"
-            accessibilityIgnoresInvertColors
-          />
-        </View>
-
         <View style={styles.machineSection}>
           <View style={styles.machineIntro}>
             <Text style={styles.machineTitle}>Where should we dine?</Text>
-            <Text style={styles.machineHint}>Choose a category and let the machine make the pick.</Text>
+            <Text style={styles.machineHint}>Pick a category and let the reels decide.</Text>
           </View>
 
           <SlotMachine
@@ -390,12 +381,10 @@ const styles = StyleSheet.create({
       ? ({ backgroundImage: `linear-gradient(180deg, #EEF3F5 0%, ${Colors.backgroundWarm} 30%, ${Colors.backgroundAlt} 100%)` } as any)
       : {}),
   },
-  hero: { width: '100%', maxWidth: 760, paddingHorizontal: Spacing.lg, paddingTop: 2, alignItems: 'center' },
-  headerLogo: { width: 168, height: 66 },
   machineSection: { width: '100%', maxWidth: 760, alignItems: 'center', gap: Spacing.sm },
   machineIntro: { width: '100%', paddingHorizontal: Spacing.lg, gap: 6, alignItems: 'center' },
-  machineTitle: { color: Colors.textPrimary, fontSize: FontSizes.xl, lineHeight: 28, fontWeight: '800', textAlign: 'center' },
-  machineHint: { color: Colors.textSecondary, fontSize: FontSizes.md, lineHeight: 22, textAlign: 'center', maxWidth: 460 },
+  machineTitle: { color: Colors.primary, fontSize: FontSizes.xl, lineHeight: 28, fontWeight: '800', textAlign: 'center' },
+  machineHint: { color: Colors.textMuted, fontSize: FontSizes.md, lineHeight: 22, textAlign: 'center', maxWidth: 460 },
   footer: { alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.lg, maxWidth: 760 },
   emptyNote: { fontSize: FontSizes.sm, color: Colors.textMuted, textAlign: 'center', lineHeight: 18, maxWidth: 420 },
   listLink: { paddingVertical: Spacing.sm },
