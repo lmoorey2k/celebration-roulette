@@ -59,19 +59,49 @@ function unlockAudio(c: AudioContext): void {
 }
 
 // ─── iOS touch unlock ─────────────────────────────────────────────────────────
-// React's synthetic event system breaks the "direct user gesture" chain that
-// iOS WebKit requires for AudioContext.resume(). Listening at the capture phase
-// on touchstart/touchend fires synchronously before React sees the event,
-// guaranteeing we're inside a real gesture stack frame — the only context iOS
-// will accept for audio unlock.
+// Two separate problems require two separate fixes on iOS:
+//
+// 1. GESTURE CHAIN (fixed below): React's synthetic event system breaks the
+//    "direct user gesture" stack that iOS WebKit requires for AudioContext.resume().
+//    Capture-phase native listeners fire before React and satisfy iOS.
+//
+// 2. RING/SILENT SWITCH: iOS categorises Web Audio API oscillators as "ambient"
+//    audio, which the hardware silent switch mutes. Playing a real <audio> element
+//    in the same gesture registers the page as "media playback" with iOS, which
+//    exempts ALL subsequent Web Audio output from the silent switch — the same
+//    effect as AVAudioSession .playback category in a native Swift app.
+//
+// A base64-encoded 0.1 s silent MP3 is used so no extra asset file is needed.
+const SILENT_MP3 =
+  'data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaWdTb3VuZEJhbmsu' +
+  'Y29tIC8gTGFTb25vdGhlcXVlLm9yZwBURU5DAAAACQAAA1N3aXRjaAAAAAAAAAAAAAAAAAAAAAAAAA' +
+  'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+  'AAAAAAAAAAAAAP/zcGAAAANIAAAAAExBTUUzLjk5LjVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV' +
+  'VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV' +
+  'VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV' +
+  'VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV' +
+  'VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV' +
+  'VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+
 function setupIOSTouchUnlock(): void {
   if (typeof document === 'undefined') return;
 
   const unlock = () => {
+    // Fix #1: unlock AudioContext inside the real gesture stack
     const c = ctx();
-    if (!c) return;
-    c.resume().catch(() => {});
-    unlockAudio(c);
+    if (c) {
+      c.resume().catch(() => {});
+      unlockAudio(c);
+    }
+
+    // Fix #2: play a silent <audio> element to register as media playback,
+    // which tells iOS to ignore the Ring/Silent switch for this page's audio.
+    try {
+      const el = new Audio(SILENT_MP3);
+      el.volume = 0.001;
+      el.play().catch(() => {});
+    } catch { /* non-fatal */ }
+
     document.removeEventListener('touchstart', unlock, true);
     document.removeEventListener('touchend', unlock, true);
   };
