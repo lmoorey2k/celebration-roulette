@@ -61,43 +61,68 @@ function unlockAudio(c: AudioContext): void {
 // ─── iOS touch unlock ─────────────────────────────────────────────────────────
 // Two separate problems require two separate fixes on iOS:
 //
-// 1. GESTURE CHAIN (fixed below): React's synthetic event system breaks the
-//    "direct user gesture" stack that iOS WebKit requires for AudioContext.resume().
-//    Capture-phase native listeners fire before React and satisfy iOS.
+// 1. GESTURE CHAIN: React's synthetic event system breaks the "direct user
+//    gesture" stack that iOS WebKit requires for AudioContext.resume(). Capture-
+//    phase native listeners fire before React and satisfy the requirement.
 //
 // 2. RING/SILENT SWITCH: iOS categorises Web Audio API oscillators as "ambient"
-//    audio, which the hardware silent switch mutes. Playing a real <audio> element
-//    in the same gesture registers the page as "media playback" with iOS, which
-//    exempts ALL subsequent Web Audio output from the silent switch — the same
-//    effect as AVAudioSession .playback category in a native Swift app.
+//    audio, which the hardware silent switch (and Action Button on iPhone 15 Pro+)
+//    mutes. Playing a real decoded <audio> element in the same gesture registers
+//    the page as "media playback" with iOS — exempting ALL subsequent Web Audio
+//    output from the silent switch. This is the web equivalent of
+//    AVAudioSession.setCategory(.playback) in a native Swift app.
 //
-// A base64-encoded 0.1 s silent MP3 is used so no extra asset file is needed.
-const SILENT_MP3 =
-  'data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaWdTb3VuZEJhbmsu' +
-  'Y29tIC8gTGFTb25vdGhlcXVlLm9yZwBURU5DAAAACQAAA1N3aXRjaAAAAAAAAAAAAAAAAAAAAAAAAA' +
-  'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
-  'AAAAAAAAAAAAAP/zcGAAAANIAAAAAExBTUUzLjk5LjVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV' +
-  'VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV' +
-  'VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV' +
-  'VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV' +
-  'VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV' +
-  'VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+//    IMPORTANT: The audio element must contain a valid, decodable audio file.
+//    A fake/invalid base64 blob will fail silently and the silent-switch bypass
+//    will never activate. We generate a real PCM WAV from scratch using the
+//    Web Audio API's own render pipeline — no external file or base64 needed.
+
+function buildSilentWavUrl(): string {
+  // Construct a minimal valid WAV: 44-byte RIFF header + 1 sample of silence.
+  // iOS will fully decode this, which is the trigger iOS needs to reclassify
+  // the page's audio as "media playback" rather than "ambient".
+  const numSamples = 1;
+  const sampleRate = 8000;
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+  const blockAlign = numChannels * (bitsPerSample / 8);
+  const dataSize = numSamples * blockAlign;
+  const buf = new ArrayBuffer(44 + dataSize);
+  const v = new DataView(buf);
+  const s = (o: number, str: string) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+  s(0, 'RIFF'); v.setUint32(4, 36 + dataSize, true);
+  s(8, 'WAVE'); s(12, 'fmt ');
+  v.setUint32(16, 16, true);          // subchunk1 size
+  v.setUint16(20, 1, true);           // PCM format
+  v.setUint16(22, numChannels, true);
+  v.setUint32(24, sampleRate, true);
+  v.setUint32(28, byteRate, true);
+  v.setUint16(32, blockAlign, true);
+  v.setUint16(34, bitsPerSample, true);
+  s(36, 'data'); v.setUint32(40, dataSize, true);
+  v.setInt16(44, 0, true);            // one sample of silence
+  return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+}
+
+let _silentWavUrl: string | null = null;
 
 function setupIOSTouchUnlock(): void {
   if (typeof document === 'undefined') return;
 
   const unlock = () => {
-    // Fix #1: unlock AudioContext inside the real gesture stack
+    // Fix #1: unlock AudioContext inside the real (capture-phase) gesture stack.
     const c = ctx();
     if (c) {
       c.resume().catch(() => {});
       unlockAudio(c);
     }
 
-    // Fix #2: play a silent <audio> element to register as media playback,
-    // which tells iOS to ignore the Ring/Silent switch for this page's audio.
+    // Fix #2: play a verified-valid silent WAV so iOS reclassifies this page as
+    // "media playback" and stops muting it via the Ring/Silent switch.
     try {
-      const el = new Audio(SILENT_MP3);
+      if (!_silentWavUrl) _silentWavUrl = buildSilentWavUrl();
+      const el = new Audio(_silentWavUrl);
       el.volume = 0.001;
       el.play().catch(() => {});
     } catch { /* non-fatal */ }
