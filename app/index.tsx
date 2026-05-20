@@ -30,6 +30,16 @@ type SpinState = 'idle' | 'spinning' | 'result';
 // the "closed on Sundays" joke message.
 const CHICK_FIL_A_ID = 9;
 
+// Force the Sunday Easter egg on any day by appending ?testSunday=1 to the URL.
+// Lets us preview / share the gag without waiting until Sunday or changing
+// the system clock. Reads only on web; native always falls back to real date.
+function isSundayOrForced(): boolean {
+  if (typeof window !== 'undefined' && window.location?.search) {
+    if (new URLSearchParams(window.location.search).has('testSunday')) return true;
+  }
+  return isSunday();
+}
+
 export default function HomeScreen() {
   const router   = useRouter();
   const { spinPool } = useRestaurantContext();
@@ -46,7 +56,7 @@ export default function HomeScreen() {
   // Only on Sunday, only if it hasn't already happened this session,
   // and only if Chick-fil-A is actually in the current filtered pool.
   const shouldWinChickFilA =
-    isSunday() &&
+    isSundayOrForced() &&
     !sundayFirstSpinDone &&
     spinPool.some((r) => r.id === CHICK_FIL_A_ID);
 
@@ -73,7 +83,7 @@ export default function HomeScreen() {
     resumeAudio();
     // If this spin is the rigged Sunday Chick-fil-A spin, mark it as used now
     // so subsequent spins return to normal random behaviour.
-    if (isSunday() && !sundayFirstSpinDone) {
+    if (isSundayOrForced() && !sundayFirstSpinDone) {
       setSundayFirstSpinDone(true);
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -84,7 +94,7 @@ export default function HomeScreen() {
     setSpinState('result');
     // Sunday Chick-fil-A Easter egg: play the sad trombone instead of the
     // celebration sound, and skip confetti so the "closed" message lands clearly.
-    const isClosedSunday = restaurant.id === CHICK_FIL_A_ID && isSunday();
+    const isClosedSunday = restaurant.id === CHICK_FIL_A_ID && isSundayOrForced();
     if (isClosedSunday) {
       playSadTrombone();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
@@ -143,12 +153,13 @@ export default function HomeScreen() {
           />
         </View>
 
-        {/* Winner card slides in below the machine — reels stay fully visible */}
-        {spinState === 'result' && winner && (
+        {/* Winner card slides in below the machine — reels stay fully visible.
+            Suppressed on the Sunday Chick-fil-A Easter egg; SundayClosedOverlay
+            takes over the full screen with a dramatic reveal instead. */}
+        {spinState === 'result' && winner && !(winner.id === CHICK_FIL_A_ID && isSundayOrForced()) && (
           <WinnerCard
             winner={winner}
             onSpinAgain={handleSpinAgain}
-            isClosedSunday={winner.id === CHICK_FIL_A_ID && isSunday()}
           />
         )}
 
@@ -167,13 +178,18 @@ export default function HomeScreen() {
       </ScrollView>
 
       <Confetti active={showConfetti} />
+
+      {/* Full-screen Chick-fil-A-on-Sunday Easter egg overlay */}
+      {spinState === 'result' && winner && winner.id === CHICK_FIL_A_ID && isSundayOrForced() && (
+        <SundayClosedOverlay winner={winner} onSpinAgain={handleSpinAgain} />
+      )}
     </SafeAreaView>
   );
 }
 
 // ─── Winner card ──────────────────────────────────────────────────────────────
 
-function WinnerCard({ winner, onSpinAgain, isClosedSunday = false }: { winner: Restaurant; onSpinAgain: () => void; isClosedSunday?: boolean }) {
+function WinnerCard({ winner, onSpinAgain }: { winner: Restaurant; onSpinAgain: () => void }) {
   const slideAnim = useRef(new Animated.Value(48)).current;
   const fadeAnim  = useRef(new Animated.Value(0)).current;
 
@@ -192,80 +208,58 @@ function WinnerCard({ winner, onSpinAgain, isClosedSunday = false }: { winner: R
 
   return (
     <Animated.View style={[wStyles.wrap, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-      <View style={[wStyles.card, isClosedSunday && wStyles.cardClosed]}>
+      <View style={wStyles.card}>
         {/* Logo + info row */}
         <View style={wStyles.header}>
-          <View style={wStyles.logoWrap}>
-            {winner.logo_url ? (
-              <Image source={{ uri: winner.logo_url }} style={[wStyles.logo, isClosedSunday && wStyles.logoDim]} resizeMode="contain" accessibilityIgnoresInvertColors />
-            ) : (
-              <View style={wStyles.logoFallback}>
-                <Text style={wStyles.logoFallbackText}>{winner.name.slice(0, 1)}</Text>
-              </View>
-            )}
-            {/* CLOSED stamp overlay — only renders on Sunday Chick-fil-A win */}
-            {isClosedSunday && (
-              <View style={wStyles.closedStamp} pointerEvents="none">
-                <Text style={wStyles.closedStampText}>CLOSED{'\n'}SUNDAY</Text>
-              </View>
-            )}
-          </View>
+          {winner.logo_url ? (
+            <Image source={{ uri: winner.logo_url }} style={wStyles.logo} resizeMode="contain" accessibilityIgnoresInvertColors />
+          ) : (
+            <View style={wStyles.logoFallback}>
+              <Text style={wStyles.logoFallbackText}>{winner.name.slice(0, 1)}</Text>
+            </View>
+          )}
           <View style={wStyles.info}>
-            <Text style={wStyles.eyebrow}>
-              {isClosedSunday ? '🐔 You won...!' : 'Your Celebration pick'}
-            </Text>
+            <Text style={wStyles.eyebrow}>Your Celebration pick</Text>
             <Text style={wStyles.name} numberOfLines={2}>{winner.name}</Text>
-            {isClosedSunday ? (
-              <Text style={wStyles.sundayMessage}>
-                ...but it's closed on Sundays 😅{'\n'}Give it another spin!
-              </Text>
-            ) : (
-              <>
-                <Text style={wStyles.address} numberOfLines={2}>{winner.address}</Text>
-                {winner.phone ? (
-                  <Pressable onPress={handlePhone} accessibilityRole="link">
-                    <Text style={wStyles.phone}>{winner.phone}</Text>
-                  </Pressable>
-                ) : null}
-              </>
-            )}
+            <Text style={wStyles.address} numberOfLines={2}>{winner.address}</Text>
+            {winner.phone ? (
+              <Pressable onPress={handlePhone} accessibilityRole="link">
+                <Text style={wStyles.phone}>{winner.phone}</Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
 
-        {/* Action rows — hidden when Chick-fil-A is closed (Sunday). */}
-        {!isClosedSunday && (
-          <>
-            <View style={wStyles.actions}>
-              <Pressable
-                onPress={handleMaps}
-                style={({ pressed }) => [wStyles.primary, pressed && wStyles.pressed]}
-                accessibilityRole="button"
-              >
-                <Text style={wStyles.primaryText}>Open in Maps</Text>
-              </Pressable>
-              {winner.phone ? (
-                <Pressable
-                  onPress={handlePhone}
-                  style={({ pressed }) => [wStyles.secondary, pressed && wStyles.pressed]}
-                  accessibilityRole="link"
-                >
-                  <Text style={wStyles.secondaryText}>Call</Text>
-                </Pressable>
-              ) : null}
-            </View>
+        {/* Primary action row */}
+        <View style={wStyles.actions}>
+          <Pressable
+            onPress={handleMaps}
+            style={({ pressed }) => [wStyles.primary, pressed && wStyles.pressed]}
+            accessibilityRole="button"
+          >
+            <Text style={wStyles.primaryText}>Open in Maps</Text>
+          </Pressable>
+          {winner.phone ? (
+            <Pressable
+              onPress={handlePhone}
+              style={({ pressed }) => [wStyles.secondary, pressed && wStyles.pressed]}
+              accessibilityRole="link"
+            >
+              <Text style={wStyles.secondaryText}>Call</Text>
+            </Pressable>
+          ) : null}
+        </View>
 
-            {/* Website — tertiary button, not a tiny text link */}
-            {winner.website_url ? (
-              <Pressable
-                onPress={handleWebsite}
-                style={({ pressed }) => [wStyles.tertiary, pressed && wStyles.pressed]}
-                accessibilityRole="link"
-              >
-                <Text style={wStyles.tertiaryText}>View website</Text>
-              </Pressable>
-            ) : null}
-          </>
-        )}
+        {/* Website — tertiary button, not a tiny text link */}
+        {winner.website_url ? (
+          <Pressable
+            onPress={handleWebsite}
+            style={({ pressed }) => [wStyles.tertiary, pressed && wStyles.pressed]}
+            accessibilityRole="link"
+          >
+            <Text style={wStyles.tertiaryText}>View website</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {/* Spin again — beneath the card, understated */}
@@ -276,6 +270,107 @@ function WinnerCard({ winner, onSpinAgain, isClosedSunday = false }: { winner: R
       >
         <Text style={wStyles.spinAgainText}>↺  Spin again</Text>
       </Pressable>
+    </Animated.View>
+  );
+}
+
+// ─── Sunday Chick-fil-A closed overlay (Easter egg) ──────────────────────────
+//
+// Full-screen takeover that fires after the rigged Sunday spin. Designed to
+// feel like a "GOTCHA!" reveal: dark backdrop, big bold headline calling out
+// the Sunday craving, the Chick-fil-A logo with a giant red CLOSED stamp that
+// slams in with a wobble — synced to the sad-trombone audio cue.
+//
+// Animation choreography:
+//   t=0     — backdrop fades, card pops up with overshoot spring
+//   t=380ms — stamp slams in from 3× scale, card shakes briefly for impact
+
+function SundayClosedOverlay({ winner, onSpinAgain }: { winner: Restaurant; onSpinAgain: () => void }) {
+  const fadeAnim  = useRef(new Animated.Value(0)).current;   // backdrop fade
+  const scaleAnim = useRef(new Animated.Value(0.6)).current; // card pop-in
+  const stampAnim = useRef(new Animated.Value(0)).current;   // 0 → 1 slam
+  const shakeAnim = useRef(new Animated.Value(0)).current;   // card shake on slam
+
+  useEffect(() => {
+    fadeAnim.setValue(0);
+    scaleAnim.setValue(0.6);
+    stampAnim.setValue(0);
+    shakeAnim.setValue(0);
+
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, friction: 6, tension: 110, useNativeDriver: true }),
+    ]).start();
+
+    // Stamp slams in shortly after the card has settled, syncing with the
+    // sad-trombone sound for maximum comedic impact.
+    const slamTimer = setTimeout(() => {
+      Animated.spring(stampAnim, { toValue: 1, friction: 4, tension: 220, useNativeDriver: true }).start();
+      Animated.sequence([
+        Animated.timing(shakeAnim, { toValue: 1,    duration: 60, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -1,   duration: 60, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 0.5,  duration: 60, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -0.3, duration: 60, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 0,    duration: 60, useNativeDriver: true }),
+      ]).start();
+    }, 380);
+
+    return () => clearTimeout(slamTimer);
+  }, [fadeAnim, scaleAnim, stampAnim, shakeAnim]);
+
+  const shakeX  = shakeAnim.interpolate({ inputRange: [-1, 1], outputRange: [-8, 8] });
+  // Stamp comes in BIG (3× scale, slightly rotated) and lands at 1× — gives it
+  // the rubber-stamp slam feel.
+  const stampScale = stampAnim.interpolate({ inputRange: [0, 1], outputRange: [3, 1] });
+
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill, sStyles.backdrop, { opacity: fadeAnim }]} pointerEvents="auto">
+      <Animated.View
+        style={[
+          sStyles.card,
+          { transform: [{ scale: scaleAnim }, { translateX: shakeX }] },
+        ]}
+      >
+        <Text style={sStyles.eyebrow}>ADMIT IT...</Text>
+        <Text style={sStyles.title}>You ALWAYS want{'\n'}Chick-fil-A{'\n'}on a Sunday.</Text>
+        <Text style={sStyles.subtitle}>It never fails. 🐔</Text>
+
+        <View style={sStyles.logoBox}>
+          {winner.logo_url ? (
+            <Image
+              source={{ uri: winner.logo_url }}
+              style={sStyles.logo}
+              resizeMode="contain"
+              accessibilityIgnoresInvertColors
+            />
+          ) : (
+            <View style={sStyles.logoFallback}>
+              <Text style={sStyles.logoFallbackText}>{winner.name.slice(0, 1)}</Text>
+            </View>
+          )}
+          {/* The CLOSED TODAY rubber stamp */}
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              sStyles.stamp,
+              { opacity: stampAnim, transform: [{ rotate: '-12deg' }, { scale: stampScale }] },
+            ]}
+          >
+            <Text style={sStyles.stampText}>CLOSED{'\n'}TODAY</Text>
+          </Animated.View>
+        </View>
+
+        <Text style={sStyles.bottomMessage}>Sorry — it's closed today 😅</Text>
+
+        <Pressable
+          onPress={onSpinAgain}
+          style={({ pressed }) => [sStyles.spinAgainBtn, pressed && sStyles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Spin again for an open restaurant"
+        >
+          <Text style={sStyles.spinAgainBtnText}>🎰  Spin Again</Text>
+        </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -323,54 +418,12 @@ const wStyles = StyleSheet.create({
     gap: Spacing.md,
     ...Shadow.card,
   },
-  // Closed-on-Sunday variant — softer card with a red accent border.
-  cardClosed: {
-    borderColor: '#D85C5C',
-    borderWidth: 2,
-    backgroundColor: '#FFF7F5',
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
   },
-  // Wraps the logo so the CLOSED stamp can absolutely overlay it.
-  logoWrap: {
-    width: 88, height: 68, flexShrink: 0,
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   logo: { width: 88, height: 68, flexShrink: 0 },
-  // Dimmed logo behind the CLOSED stamp.
-  logoDim: { opacity: 0.45 },
-  // Diagonal red "CLOSED SUNDAY" rubber stamp over the Chick-fil-A logo.
-  closedStamp: {
-    position: 'absolute',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderWidth: 2.5,
-    borderColor: '#C0392B',
-    borderRadius: 4,
-    backgroundColor: 'rgba(192, 57, 43, 0.08)',
-    transform: [{ rotate: '-14deg' }],
-  },
-  closedStampText: {
-    color: '#C0392B',
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-    textAlign: 'center',
-    lineHeight: 12,
-  },
-  // The playful "but it's closed on Sundays" message line.
-  sundayMessage: {
-    color: '#7A3B30',
-    fontSize: FontSizes.sm,
-    lineHeight: 20,
-    fontWeight: '600',
-    marginTop: 4,
-  },
   logoFallback: {
     width: 88, height: 68, flexShrink: 0,
     borderRadius: Radii.md,
@@ -441,4 +494,140 @@ const wStyles = StyleSheet.create({
     fontWeight: '700',
   },
   pressed: { opacity: 0.82, transform: [{ scale: 0.985 }] },
+});
+
+// ─── Sunday Closed overlay styles ────────────────────────────────────────────
+// Full-screen takeover styling for the Chick-fil-A Easter egg. Designed to
+// feel bold and a little "Vegas billboard" — high-contrast, oversized type,
+// rubber-stamp drama.
+
+const sStyles = StyleSheet.create({
+  backdrop: {
+    backgroundColor: 'rgba(8, 32, 26, 0.82)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    zIndex: 100,
+    ...(Platform.OS === 'web' ? ({ backdropFilter: 'blur(6px)' } as any) : {}),
+  },
+  card: {
+    width: '100%',
+    maxWidth: 480,
+    backgroundColor: '#FFF8EC', // cream — matches the cabinet panel
+    borderRadius: 22,
+    borderWidth: 4,
+    borderColor: '#0B5B45',     // Visit Celebration green
+    paddingVertical: 28,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    gap: 10,
+    ...(Platform.OS === 'web'
+      ? ({ boxShadow: '0 25px 60px rgba(0,0,0,0.45), 0 0 0 6px rgba(207,161,75,0.45)' } as any)
+      : {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 18 },
+          shadowOpacity: 0.42,
+          shadowRadius: 26,
+          elevation: 24,
+        }),
+  },
+  eyebrow: {
+    color: '#C0392B',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 3,
+    textAlign: 'center',
+  },
+  title: {
+    fontSize: 30,
+    lineHeight: 34,
+    fontWeight: '900',
+    color: '#0B5B45',
+    textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#526C63',
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  logoBox: {
+    width: 220,
+    height: 160,
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  logo: {
+    width: '100%',
+    height: '100%',
+    opacity: 0.45,
+  },
+  logoFallback: {
+    width: 220,
+    height: 160,
+    borderRadius: 14,
+    backgroundColor: '#E6F0EC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.45,
+  },
+  logoFallbackText: {
+    color: '#0B5B45',
+    fontSize: 64,
+    fontWeight: '900',
+  },
+  // Big red rubber "CLOSED TODAY" stamp.
+  stamp: {
+    position: 'absolute',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderWidth: 5,
+    borderColor: '#C0392B',
+    borderRadius: 8,
+    backgroundColor: 'rgba(192, 57, 43, 0.08)',
+  },
+  stampText: {
+    color: '#C0392B',
+    fontSize: 30,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    textAlign: 'center',
+    lineHeight: 32,
+  },
+  bottomMessage: {
+    fontSize: 15,
+    color: '#172F28',
+    textAlign: 'center',
+    fontWeight: '600',
+    paddingHorizontal: 8,
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  spinAgainBtn: {
+    marginTop: 14,
+    alignSelf: 'stretch',
+    backgroundColor: '#0B5B45',
+    borderWidth: 2,
+    borderColor: '#063E31',
+    borderRadius: 50,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...(Platform.OS === 'web'
+      ? ({ boxShadow: '0 6px 14px rgba(11,91,69,0.4), inset 0 1px 0 rgba(255,255,255,0.18)' } as any)
+      : {}),
+  },
+  spinAgainBtnText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  pressed: { opacity: 0.88, transform: [{ scale: 0.97 }] },
 });
