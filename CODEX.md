@@ -910,3 +910,21 @@ https://celebration-roulette.vercel.app?testSunday=1
 - Feature is live at `https://celebration-roulette.vercel.app` and deployed via `git push origin main`.
 - Can be toggled off by removing `isSunday() &&` checks or setting `shouldWinChickFilA={false}` in code.
 - Test param `?testSunday=1` is safe to leave in code — it's harmless and useful for future QA.
+
+---
+
+## 20. Session Changes — 2026-05-20 (continued)
+
+### Desktop spin button vertical position (tuning)
+- Ratio adjusted from `0.845` → `0.827` in `components/SlotMachine.tsx`
+- `0.812` was too high (original), `0.845` was too low; `0.827` splits the difference
+- Mobile unaffected (ratio is `0.812` when `cabinetW < 680`)
+
+### iOS audio fix (`utils/audio.ts`)
+**Problem:** Sound was completely silent on iPhone in both Safari and Chrome.
+
+**Root cause:** iOS WebKit (used by both Safari and Chrome on iPhone) requires `AudioContext.resume()` to be called inside a *direct* native gesture stack frame. React's synthetic event system breaks this chain — by the time `onPress` fires, iOS no longer accepts it as a "user gesture" for audio unlock purposes.
+
+**Fix:** Added `setupIOSTouchUnlock()` to `utils/audio.ts`. It attaches `touchstart`/`touchend` listeners at the **capture phase** on `document` (before React sees the event). This fires synchronously inside the real gesture, which iOS accepts. On first touch anywhere on the screen, the AudioContext is created, `resume()` is called, and the silent buffer unlock runs. Listeners remove themselves after the first unlock. Runs automatically when the module is imported on web.
+
+**Key invariant:** The capture-phase approach also works when the app is embedded in an iframe (visitcelebration.org embed), so audio will work there too on iOS without any additional changes.
