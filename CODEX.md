@@ -1011,3 +1011,39 @@ The local git config for the repo used `lmoorey2k@github.com` as the commit auth
 - The git email for **both** repos (`celebration-backend` and `Celebration-Roulet`) must be `lmoore7@gmail.com` — this matches the verified email on the GitHub account `lmoorey2k`
 - Never use `lmoorey2k@github.com` — Vercel cannot match it
 - The GitHub noreply email `272659109+lmoorey2k@users.noreply.github.com` would also work if privacy is preferred
+
+---
+
+## 23. Two-Sided Admin Odds Slider — 2026-05-21
+
+### Problem
+The admin odds slider only boosted restaurants upward. That worked for preferred picks like Posto Pizza, but there was no way to leave a chain or lower-priority listing visible while making it less likely to win. The old labels also showed approximate percentages based on one full-pool size, which becomes misleading when category filters or hidden listings change the active pool.
+
+### Solution
+The admin slider now remains admin-only but supports lower and higher odds around the existing Normal value. Existing saved values keep their meanings:
+
+| Tier | Weight | Multiplier | Meaning |
+|------|--------|------------|---------|
+| Rare | -2 | 0.1× | Much less likely |
+| Low Priority | -1 | 0.25× | Less likely |
+| Slightly Lower | 0 | 0.5× | A little less likely |
+| Normal | 1 | 1× | Standard odds |
+| Boosted | 2 | 2× | More likely |
+| Featured | 3 | 5× | Strong boost |
+| Hot Pick | 4 | 10× | Very likely |
+| Sponsored | 5 | 50× | Highest priority |
+
+### Key invariant for future agents
+- Public users do **not** see or control odds. The slider is only in `celebration-backend/pages/admin/index.tsx`.
+- Hide/show behavior stays separate from odds:
+  - `active`, `eligible_for_wheel`, `default_excluded`, and `session_excluded` decide whether a restaurant can appear at all.
+  - `weight` decides how likely an included restaurant is to win.
+- Winner selection now uses a true weighted random roll with fractional multipliers, not duplicated entries in an array. This is required for lower-odds tiers like 0.25× and 0.1×.
+- Reel visuals, poolKey, defaultItems, restaurant count, and category filtering still use the unique restaurant pool. Do not let odds weighting duplicate reel visuals.
+- The Chick-fil-A Sunday Easter egg (`shouldWinChickFilA`) still takes priority over weighted selection.
+
+### Files changed
+- `hooks/useRestaurants.ts` — `ODDS_MULTIPLIER` map and `getOddsMultiplier()`
+- `components/SlotMachine.tsx` — true weighted random winner picker
+- `utils/spin.ts` — legacy/result picker updated to use odds multipliers
+- `celebration-backend/pages/admin/index.tsx` — admin slider range, labels, and colors changed from boost-only to two-sided odds

@@ -22,6 +22,25 @@ export interface Restaurant {
 // API endpoint — update this after deploying to Vercel
 const API_URL = process.env.EXPO_PUBLIC_API_URL || '';
 
+// Admin odds tier -> internal multiplier for winner selection.
+// Existing data stays compatible: 1 is still Normal, 4 is still Hot Pick,
+// and 5 is still Sponsored. New lower tiers allow restaurants to remain
+// visible while being less likely to win.
+export const ODDS_MULTIPLIER: Record<number, number> = {
+  [-2]: 0.1,
+  [-1]: 0.25,
+  0: 0.5,
+  1: 1,
+  2: 2,
+  3: 5,
+  4: 10,
+  5: 50,
+};
+
+export function getOddsMultiplier(weight: number | null | undefined): number {
+  return ODDS_MULTIPLIER[weight ?? 1] ?? 1;
+}
+
 function hydrate(raw: any[]): Restaurant[] {
   return raw.map((r) => ({
     categories: [],
@@ -69,14 +88,6 @@ export function useRestaurants() {
     setRestaurants(prev => prev.map(r => ({ ...r, session_excluded: r.default_excluded })));
   }, []);
 
-  // Weight tier → internal multiplier for the weighted pick pool:
-  //   1 (Normal)    → 1×  (~2% with 54 restaurants)
-  //   2 (Boosted)   → 2×  (~4%)
-  //   3 (Featured)  → 5×  (~9%)
-  //   4 (Hot Pick)  → 10× (~16%)
-  //   5 (Sponsored) → 50× (~48%)
-  const WEIGHT_MULTIPLIER: Record<number, number> = { 1: 1, 2: 2, 3: 5, 4: 10, 5: 50 };
-
   // spinPool — unique list of eligible restaurants (for reel visuals & UI counts)
   const spinPool = useMemo(() => {
     return restaurants.filter(
@@ -84,18 +95,11 @@ export function useRestaurants() {
     );
   }, [restaurants]);
 
-  // weightedPool — same restaurants but duplicated by weight multiplier.
-  // Used ONLY for picking the winner: Math.random() selects from this array,
-  // so boosted restaurants have proportionally higher odds.
+  // weightedPool — eligible restaurants for winner selection. It intentionally
+  // stays unique; SlotMachine applies getOddsMultiplier() during the weighted
+  // random pick so fractional "less likely" tiers work cleanly.
   const weightedPool = useMemo(() => {
-    const weighted: Restaurant[] = [];
-    for (const r of spinPool) {
-      const mult = WEIGHT_MULTIPLIER[r.weight] ?? 1;
-      for (let i = 0; i < mult; i++) {
-        weighted.push(r);
-      }
-    }
-    return weighted;
+    return spinPool;
   }, [spinPool]);
 
   return { restaurants, spinPool, weightedPool, toggleSessionExclusion, resetSession, loadedFromApi };

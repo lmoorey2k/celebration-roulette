@@ -1,4 +1,4 @@
-import type { Restaurant } from '@/hooks/useRestaurants';
+import { getOddsMultiplier, type Restaurant } from '@/hooks/useRestaurants';
 
 export function pickWinner(pool: Restaurant[]): Restaurant | null {
   const eligible = pool.filter(
@@ -6,11 +6,13 @@ export function pickWinner(pool: Restaurant[]): Restaurant | null {
   );
   if (eligible.length === 0) return null;
 
-  const totalWeight = eligible.reduce((sum, r) => sum + r.weight, 0);
+  const totalWeight = eligible.reduce((sum, r) => sum + Math.max(0, getOddsMultiplier(r.weight)), 0);
+  if (totalWeight <= 0) return eligible[Math.floor(Math.random() * eligible.length)];
+
   let rand = Math.random() * totalWeight;
 
   for (const restaurant of eligible) {
-    rand -= restaurant.weight;
+    rand -= Math.max(0, getOddsMultiplier(restaurant.weight));
     if (rand <= 0) return restaurant;
   }
 

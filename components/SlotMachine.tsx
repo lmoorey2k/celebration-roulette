@@ -18,7 +18,7 @@ import {
   Platform,
   LayoutChangeEvent,
 } from 'react-native';
-import type { Restaurant } from '@/hooks/useRestaurants';
+import { getOddsMultiplier, type Restaurant } from '@/hooks/useRestaurants';
 import { FontSizes, Radii } from '@/constants/theme';
 import { resumeAudio, playLeverPull, playTick, playReelStop, playWinDing } from '@/utils/audio';
 import { CATEGORIES, type Category } from './CategoryFilter';
@@ -87,6 +87,21 @@ function sameOrder(a: readonly number[] | null, b: readonly number[]) {
   return !!a && a.every((v, i) => v === b[i]);
 }
 
+function pickWeightedRestaurant(pool: Restaurant[]): Restaurant | null {
+  if (pool.length === 0) return null;
+
+  const total = pool.reduce((sum, restaurant) => sum + Math.max(0, getOddsMultiplier(restaurant.weight)), 0);
+  if (total <= 0) return pool[Math.floor(Math.random() * pool.length)];
+
+  let roll = Math.random() * total;
+  for (const restaurant of pool) {
+    roll -= Math.max(0, getOddsMultiplier(restaurant.weight));
+    if (roll <= 0) return restaurant;
+  }
+
+  return pool[pool.length - 1];
+}
+
 // ─── Reel item ────────────────────────────────────────────────────────────────
 
 function ReelItem({ restaurant, itemW, itemH }: { restaurant: Restaurant; itemW: number; itemH: number }) {
@@ -141,8 +156,8 @@ export interface SlotMachineHandle {
 
 interface Props {
   pool: Restaurant[];
-  /** Weighted version of pool — restaurants with higher weight appear multiple
-   *  times. Used ONLY for picking the winner. Reel visuals use `pool` (unique). */
+  /** Odds pick pool. Kept separate from `pool` so winner selection can use
+   *  admin odds while reel visuals stay unique and uncluttered. */
   weightedPool?: Restaurant[];
   spinning: boolean;
   spinLabel?: string;
@@ -255,10 +270,10 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
     // random — only the final landing position is rigged.
     const CHICK_FIL_A_ID = 9;
     const chickFilA = shouldWinChickFilA ? pool.find((r) => r.id === CHICK_FIL_A_ID) : undefined;
-    // Pick winner from weighted pool (where boosted restaurants appear more often).
-    // Falls back to the display pool if weightedPool isn't provided.
-    const pickPool = weightedPool ?? pool;
-    const picked = chickFilA ?? pickPool[Math.floor(Math.random() * pickPool.length)];
+    // Pick winner from the admin odds pool. Lower and higher odds are handled by
+    // a true weighted random roll, so fractional tiers like 0.25x work cleanly.
+    const pickPool = weightedPool?.length ? weightedPool : pool;
+    const picked = chickFilA ?? pickWeightedRestaurant(pickPool) ?? pool[Math.floor(Math.random() * pool.length)];
     const stride = Math.max(1, Math.floor(pool.length / NUM_REELS));
     let stopOrder = STOP_ORDERS[Math.floor(Math.random() * STOP_ORDERS.length)];
     if (sameOrder(lastStopOrder.current, stopOrder)) {
