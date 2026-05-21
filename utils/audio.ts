@@ -70,7 +70,7 @@ function audioOut(c: AudioContext): AudioNode {
 const SAMPLE_REEL_START = '/audio/slot-reel-start-approved.wav';
 const SAMPLE_REEL_BED = '/audio/slot-reel-spin-bed-approved.wav';
 const SAMPLE_REEL_STOP = '/audio/slot-reel-stop-approved.wav';
-const SAMPLE_BED_VOLUME_BY_ACTIVE_REELS: Record<number, number> = { 1: 0.06, 2: 0.14, 3: 0.34 };
+const SAMPLE_BED_VOLUME_BY_ACTIVE_REELS: Record<number, number> = { 1: 0.05, 2: 0.13, 3: 0.32 };
 
 function canUseHtmlAudio(): boolean {
   return Platform.OS === 'web' && typeof Audio !== 'undefined';
@@ -115,7 +115,6 @@ function setSampleBedActiveReels(activeReels: number): void {
 
 export function startReelSampleSpin(): boolean {
   if (!canUseHtmlAudio()) return false;
-  playHtmlSample(SAMPLE_REEL_START, 0.62);
 
   try {
     const el = _sampleSpinBed ?? new Audio(SAMPLE_REEL_BED);
@@ -123,9 +122,8 @@ export function startReelSampleSpin(): boolean {
     el.loop = false;
     el.preload = 'auto';
     el.volume = SAMPLE_BED_VOLUME_BY_ACTIVE_REELS[3];
-    // Skip the leading fade-in of the derived bed; the separate start sample
-    // carries the spin engage sound and this makes the moving-reel bed feel on-time.
-    el.currentTime = 0.12;
+    // The approved bed now includes the intentional startup/ramp sound.
+    el.currentTime = 0;
     _sampleBedActive = true;
     el.onended = () => { _sampleBedActive = false; };
     el.play().catch(() => { _sampleBedActive = false; });

@@ -1253,3 +1253,33 @@ This pass follows `4335750` (`Use approved reel audio samples`). The approved sa
 - If the sample still feels late, first tune the derived asset start trim or the `el.currentTime` offset in `startReelSampleSpin()`.
 - If the step-down is still too subtle, tune `SAMPLE_BED_VOLUME_BY_ACTIVE_REELS`.
 - Keep the approved source asset documentation in section 30.
+
+---
+
+## 32. New Approved Spin Bed + Early Stop Scheduling — 2026-05-21
+
+### Starting point / rollback
+This pass follows `08fd74e` (`Tune approved reel sample timing`). The previous approved sample pass sounded real but the spin bed did not have the desired natural start/ramp, and the stop sample still felt late.
+
+### Source / approval
+The user provided and approved a new 10.0s source file for the spin sound:
+- `1-slot-machine-reel-spinnin-xewzdgqk.wav`
+- Stereo, 44.1kHz, 16-bit PCM
+- The first sound in the clip is intended to happen immediately when the spin button is pressed.
+- The clip includes a small natural delay/ramp before the reels reach full speed, which matches the desired slot-machine feel.
+
+### Changes
+- Replaced `public/audio/slot-reel-spin-bed-approved.wav` with a 9.45s trimmed version of the new approved spin source, preserving its startup/ramp and trimming trailing silence.
+- `utils/audio.ts`
+  - No longer plays the separate `slot-reel-start-approved.wav` during sample spins; the new spin bed includes the intended start.
+  - Starts the spin bed at `currentTime = 0`.
+  - Slightly adjusted bed volumes to preserve a strong 3→2→1 drop.
+- `SlotMachine.tsx`
+  - Added `SAMPLE_STOP_LEAD_MS = 130`.
+  - Schedules the approved stop sample slightly before each reel's animation completion, while the animation callback still handles state, bed fade-down, and synthetic fallback.
+  - Keeps fallback `playReelStop()` if the scheduled sample stop did not play.
+
+### Key invariant for future agents
+- If stop sounds still feel late, tune `SAMPLE_STOP_LEAD_MS` before changing animation duration or easing.
+- If the spin start feels late, do **not** skip into this new bed unless the user says the startup transient is too early; the clip's natural start is intentional.
+- Keep the previous `slot-reel-start-approved.wav` file for now, but sample spins no longer use it.

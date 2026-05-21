@@ -49,6 +49,7 @@ const SPRING_T = 240;
 // Fire tick sounds slightly before the visual row boundary. Browser/iOS audio
 // output has a little latency, so exact-boundary scheduling feels behind.
 const TICK_LEAD_RATIO = 0.38;
+const SAMPLE_STOP_LEAD_MS = 130;
 const STOP_ORDERS: readonly (readonly number[])[] = [
   [0, 1, 2], [0, 2, 1], [1, 0, 2],
   [1, 2, 0], [2, 0, 1], [2, 1, 0],
@@ -228,6 +229,7 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
   const tickIds       = useRef<string[]>(['', '', '']);
   const prevB         = useRef([0, 0, 0]);
   const stoppedReels  = useRef(0);
+  const sampleStopPlayed = useRef([false, false, false]);
   const lastStopOrder = useRef<readonly number[] | null>(null);
   // Tracks whether a spin animation is currently in flight. Used to prevent
   // the pool-change reset effect from resetting the reels mid-spin (which
@@ -307,6 +309,7 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
     clearAllTicks();
     prevB.current = [0, 0, 0];
     stoppedReels.current = 0;
+    sampleStopPlayed.current = [false, false, false];
     const tickLeadPx = itemH * TICK_LEAD_RATIO;
     anims.forEach((anim, reel) => {
       tickIds.current[reel] = anim.addListener(({ value }) => {
@@ -325,7 +328,15 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
     onSpinStart();
 
     let finished = 0;
+    const sampleStopTimers: Array<ReturnType<typeof setTimeout> | null> = [null, null, null];
     data.forEach((reelData, i) => {
+      const stopRank = profile(i);
+      if (usingSampleSpin) {
+        const stopLead = Math.max(0, DURATIONS[stopRank] - SAMPLE_STOP_LEAD_MS);
+        sampleStopTimers[i] = setTimeout(() => {
+          sampleStopPlayed.current[i] = playSampleReelStop(stopRank, stopRank === NUM_REELS - 1);
+        }, stopLead);
+      }
       // Single smooth deceleration directly to targetY — no overshoot step.
       // A two-step sequence (overshoot → spring/back-ease) caused misalignment
       // because: (a) springs don't guarantee an exact landing pixel, and (b) if
@@ -342,11 +353,14 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
         if (!ok) return;
         anims[i].setValue(reelData.targetY); // snap to exact pixel
         clearReelTick(i);
-        const stopRank = profile(i);
         stoppedReels.current += 1;
         const remainingReels = NUM_REELS - stoppedReels.current;
         setReelSampleActiveReels(remainingReels);
-        const playedSampleStop = usingSampleSpin && playSampleReelStop(stopRank, stoppedReels.current === NUM_REELS);
+        if (sampleStopTimers[i]) {
+          clearTimeout(sampleStopTimers[i]!);
+          sampleStopTimers[i] = null;
+        }
+        const playedSampleStop = usingSampleSpin && sampleStopPlayed.current[i];
         if (remainingReels === 0) stopReelSampleSpin();
         if (!playedSampleStop) playReelStop(i, stopRank, stoppedReels.current === NUM_REELS);
         finished += 1;
