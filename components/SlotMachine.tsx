@@ -38,7 +38,7 @@ const SPRING_F = 16;
 const SPRING_T = 240;
 const SPIN_PREROLL_MS = 1000;
 const SYNTH_STOP_LEAD_MS = 120;
-const AUDIO_TEST_LABEL = `${SLOT_AUDIO_VERSION} | preroll ${SPIN_PREROLL_MS}ms`;
+const AUDIO_TEST_LABEL = `v1.1 | ${SPIN_PREROLL_MS}ms`;
 // Fire tick sounds slightly before the visual row boundary. Browser/iOS audio
 // output has a little latency, so exact-boundary scheduling feels behind.
 const TICK_LEAD_RATIO = 0.38;
@@ -402,6 +402,19 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
       {/* Cabinet */}
       <View style={[styles.cabinetStage, { width: cabinetW, height: cabinetH }]}>
         <Image source={CABINET_IMAGE} style={styles.cabinetImage} resizeMode="contain" accessibilityIgnoresInvertColors />
+        <Text
+          pointerEvents="none"
+          style={[
+            styles.audioVersionBadge,
+            {
+              top: Math.round(cabinetH * 0.214),
+              left: Math.round(cabinetW * 0.34),
+              width: Math.round(cabinetW * 0.32),
+            },
+          ]}
+        >
+          {AUDIO_TEST_LABEL}
+        </Text>
 
         {/* Live reel window */}
         <View style={[styles.reelWindow, { left: reelLeft, top: reelTop, width: reelTotalW, height: reelH, borderRadius: reelBR }]}>
@@ -441,7 +454,6 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
           <Text style={styles.spinButtonText}>{pool.length < 2 ? 'NO PICKS' : spinLabel}</Text>
         </Pressable>
       </View>
-      <Text style={styles.audioVersionText}>{AUDIO_TEST_LABEL}</Text>
     </View>
   );
 });
@@ -483,5 +495,15 @@ const styles = StyleSheet.create({
   },
   spinButtonDisabled: { opacity: 1 },
   spinButtonText: { color: P.greenDark, fontSize: FontSizes.sm, fontWeight: '900', letterSpacing: 0, textAlign: 'center', ...(FONT_SANS ? ({ fontFamily: FONT_SANS } as any) : {}) },
-  audioVersionText: { color: P.inkSoft, fontSize: 11, fontWeight: '700', opacity: 0.72, textAlign: 'center', ...(FONT_SANS ? ({ fontFamily: FONT_SANS } as any) : {}) },
+  audioVersionBadge: {
+    position: 'absolute',
+    zIndex: 8,
+    color: '#F7E8BD',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0,
+    opacity: 0.92,
+    textAlign: 'center',
+    ...(FONT_SANS ? ({ fontFamily: FONT_SANS } as any) : {}),
+  },
 });

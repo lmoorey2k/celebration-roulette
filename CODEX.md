@@ -1345,3 +1345,18 @@ This pass follows `46b811f` (`Reset slot audio to mechanical v1`). The next test
 ### Key invariant for future agents
 - While audio is being tuned, keep the visible label in sync with `SLOT_AUDIO_VERSION` and `SPIN_PREROLL_MS`.
 - If the testing label should be removed for production later, remove only the visible label; keep `SLOT_AUDIO_VERSION` for rollback/debugging.
+
+---
+
+## 36. Mobile Audio Version Badge Placement — 2026-05-21
+
+### Starting point / rollback
+This pass follows `3168eff` (`Show audio timing version and double preroll`). The first visible test label was placed below the slot machine, but on iPhone it could sit too low in the page to be useful while checking the spin.
+
+### Changes
+- Moved the visible audio timing label onto the upper cabinet face where it should be visible in the first mobile viewport.
+- Shortened the visible text to `v1.1 | 1000ms` for mobile readability.
+- Kept the internal `SLOT_AUDIO_VERSION` value as `audio-v1.1-mechanical-1000ms`.
+
+### Key invariant for future agents
+- During audio testing, keep the visible badge near the cabinet top so iPhone checks can confirm the deployed version without scrolling.
