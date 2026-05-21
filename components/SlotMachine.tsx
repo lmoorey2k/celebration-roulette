@@ -302,7 +302,10 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
         const boundary = Math.floor((Math.abs(value) + tickLeadPx) / itemH);
         if (boundary !== prevB.current[reel]) {
           prevB.current[reel] = boundary;
-          playTick(reel, NUM_REELS - stoppedReels.current);
+          const target = Math.max(itemH, Math.abs(data[reel]?.targetY ?? itemH));
+          const progress = Math.min(1, Math.abs(value) / target);
+          const slowdown = Math.max(0, Math.min(1, (progress - 0.66) / 0.34));
+          playTick(reel, NUM_REELS - stoppedReels.current, slowdown);
         }
       });
     });

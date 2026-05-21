@@ -234,46 +234,37 @@ export function playLeverPull(): void {
   });
 }
 
-export function playTick(reel = 0, activeReels = 3): void {
+export function playTick(reel = 0, activeReels = 3, slowdown = 0): void {
   playWhenReady((c) => {
     const now = c.currentTime;
     const dest = audioOut(c);
     const activeCount = Math.max(1, Math.min(3, Math.round(activeReels)));
-    const levelByActiveReels: Record<number, number> = { 1: 0.028, 2: 0.052, 3: 0.082 };
+    const slow = Math.max(0, Math.min(1, slowdown));
+    const levelByActiveReels: Record<number, number> = { 1: 0.026, 2: 0.048, 3: 0.074 };
     const level = levelByActiveReels[activeCount] ?? 0.082;
+    const tickDur = 0.006 + slow * 0.006;
 
-    const noiseDur = 0.009;
-    const noiseBuffer = c.createBuffer(1, Math.max(1, Math.floor(c.sampleRate * noiseDur)), c.sampleRate);
-    const noise = noiseBuffer.getChannelData(0);
-    for (let i = 0; i < noise.length; i++) {
-      noise[i] = (Math.random() * 2 - 1) * (1 - i / noise.length);
-    }
+    const ratchet = c.createOscillator();
+    const ratchetGain = c.createGain();
+    ratchet.type = 'square';
+    ratchet.frequency.value = ([520, 585, 660][reel % 3] ?? 585) * (1 - slow * 0.28);
+    ratchetGain.gain.setValueAtTime(level, now);
+    ratchetGain.gain.exponentialRampToValueAtTime(0.001, now + tickDur);
+    ratchet.connect(ratchetGain);
+    ratchetGain.connect(dest);
+    ratchet.start(now);
+    ratchet.stop(now + tickDur + 0.002);
 
-    const src = c.createBufferSource();
-    const filter = c.createBiquadFilter();
-    const noiseGain = c.createGain();
-    src.buffer = noiseBuffer;
-    filter.type = 'bandpass';
-    filter.frequency.value = [1450, 1650, 1850][reel % 3] ?? 1650;
-    filter.Q.value = 1.3;
-    noiseGain.gain.setValueAtTime(level, now);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + noiseDur);
-    src.connect(filter);
-    filter.connect(noiseGain);
-    noiseGain.connect(dest);
-    src.start(now);
-    src.stop(now + noiseDur);
-
-    const knock = c.createOscillator();
-    const knockGain = c.createGain();
-    knock.type = 'square';
-    knock.frequency.value = [420, 470, 520][reel % 3] ?? 470;
-    knockGain.gain.setValueAtTime(level * 0.32, now);
-    knockGain.gain.exponentialRampToValueAtTime(0.001, now + 0.006);
-    knock.connect(knockGain);
-    knockGain.connect(dest);
-    knock.start(now);
-    knock.stop(now + 0.007);
+    const metal = c.createOscillator();
+    const metalGain = c.createGain();
+    metal.type = 'triangle';
+    metal.frequency.value = ([1350, 1500, 1680][reel % 3] ?? 1500) * (1 - slow * 0.18);
+    metalGain.gain.setValueAtTime(level * 0.34, now);
+    metalGain.gain.exponentialRampToValueAtTime(0.001, now + 0.005);
+    metal.connect(metalGain);
+    metalGain.connect(dest);
+    metal.start(now);
+    metal.stop(now + 0.006);
   });
 }
 

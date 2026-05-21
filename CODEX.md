@@ -1145,3 +1145,26 @@ This tuning pass follows `a12bed7` (`Tune slot audio timing and step-down`). The
 ### Key invariant for future agents
 - If the rolling sound still feels wrong, continue tuning `playTick()` in `utils/audio.ts` without changing `SlotMachine.tsx` timing unless the sync regresses.
 - The current desired direction is mechanical reel teeth/clicks, not a pitched musical/whirring tone.
+
+---
+
+## 28. Decelerating Ratchet Tick Tuning — 2026-05-21
+
+### Starting point / rollback
+This pass follows `3b16ca3` (`Tune slot tick timbre`). The timing and mobile step-down remain good, but the tick still read too much like cards shuffling/fanning and did not make each reel's pre-stop slowdown obvious enough.
+
+### Feedback addressed
+- The sound gets lower/quieter as reels stop, which is good.
+- What is missing is the sound of each individual reel slowing down right before it stops.
+- The rolling sound still reads a little like a deck of cards instead of a slot-machine reel.
+
+### Changes
+- `SlotMachine.tsx` now computes each reel's progress toward its own stop target and passes a `slowdown` value to `playTick()`.
+- `playTick(reel, activeReels, slowdown)` now uses that value to lower pitch and slightly lengthen tick duration as the reel approaches its stop.
+- Removed the filtered-noise tick layer that could read like cards fanning.
+- Replaced it with a short square-wave ratchet knock plus a tiny metal triangle click, keeping the existing active-reel volume steps.
+
+### Key invariant for future agents
+- Preserve the `TICK_LEAD_RATIO` timing unless sync becomes a problem again.
+- If the reel slowdown still is not audible enough, tune the `slowdown` curve in `SlotMachine.tsx` or the pitch/duration changes in `playTick()`, not the visual animation.
+- The target sound is mechanical ratchet/slot reel teeth, not card shuffle, fan noise, or musical whirr.
