@@ -38,7 +38,7 @@ const SPRING_F = 16;
 const SPRING_T = 240;
 const SPIN_PREROLL_MS = 1000;
 const SYNTH_STOP_LEAD_MS = 120;
-const AUDIO_TEST_LABEL = `v1.2 | ${SPIN_PREROLL_MS}ms`;
+const AUDIO_TEST_LABEL = `v1.3 | ${SPIN_PREROLL_MS}ms`;
 // Fire tick sounds slightly before the visual row boundary. Browser/iOS audio
 // output has a little latency, so exact-boundary scheduling feels behind.
 const TICK_LEAD_RATIO = 0.38;
@@ -221,6 +221,7 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
   const tickIds       = useRef<string[]>(['', '', '']);
   const prevB         = useRef([0, 0, 0]);
   const stoppedReels  = useRef(0);
+  const lastPressSoundAt = useRef(0);
   const stopSoundTimers = useRef<Array<ReturnType<typeof setTimeout> | null>>([null, null, null]);
   const stopSoundPlayed = useRef([false, false, false]);
   const lastStopOrder = useRef<readonly number[] | null>(null);
@@ -275,10 +276,17 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
 
   useEffect(() => () => { clearAllTicks(); clearStopSoundTimers(); stopGlow(); }, [clearAllTicks, clearStopSoundTimers, stopGlow]);
 
+  const playSpinPressSound = useCallback(() => {
+    if (spinning || pool.length < 2) return;
+    lastPressSoundAt.current = Date.now();
+    resumeAudio();
+    playLeverPull();
+  }, [spinning, pool.length]);
+
   const handleSpin = useCallback((playSound = true) => {
     if (spinning || pool.length < 2) return;
     resumeAudio();
-    if (playSound) playLeverPull();
+    if (playSound && Date.now() - lastPressSoundAt.current > 350) playLeverPull();
 
     // Sunday Easter egg: if shouldWinChickFilA is set AND Chick-fil-A is in
     // the current pool, force it to win. The animation still looks completely
@@ -447,6 +455,7 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
 
         {/* Spin button */}
         <Pressable
+          onPressIn={playSpinPressSound}
           onPress={() => handleSpin(true)} disabled={!canSpin}
           style={[styles.spinButton, !canSpin && styles.spinButtonDisabled, { top: spinButtonTop, left: Math.round((cabinetW - spinButtonW) / 2), width: spinButtonW, minHeight: spinButtonH, borderRadius: Math.round(spinButtonH / 2) }]}
           accessibilityRole="button" accessibilityLabel="Spin for a dining pick"

@@ -4,7 +4,7 @@ let _ctx: AudioContext | null = null;
 let _resumePromise: Promise<void> | null = null;
 let _unlocked = false;
 
-export const SLOT_AUDIO_VERSION = 'audio-v1.2-button-1000ms';
+export const SLOT_AUDIO_VERSION = 'audio-v1.3-button-immediate-1000ms';
 
 // ─── MediaStream audio routing ──────────────────────────────────────────────
 // iOS Safari can report AudioContext as 'running' while its hardware output
@@ -159,9 +159,10 @@ function setupIOSTouchUnlock(): void {
     c.resume().catch(() => {});
     unlockAudio(c);
 
-    // Ensure the stream destination exists (but don't kick playback —
-    // kickStream() will be called by audioOut() when an actual sound plays)
+    // Prime the stream on touchstart so the real button sound can fire with
+    // less iOS Safari latency when React's press handler runs.
     ensureStream(c);
+    kickStream();
 
     try {
       if (!_silentWavUrl) _silentWavUrl = buildSilentWavUrl();
@@ -207,43 +208,43 @@ function masterGain(c: AudioContext, volume: number): GainNode {
 export function playLeverPull(): void {
   playWhenReady((c) => {
     const now = c.currentTime;
-    const out = masterGain(c, 0.82);
+    const out = masterGain(c, 1);
 
     const down = c.createOscillator();
     const downGain = c.createGain();
     down.type = 'square';
-    down.frequency.setValueAtTime(320, now);
-    down.frequency.exponentialRampToValueAtTime(155, now + 0.045);
-    downGain.gain.setValueAtTime(0.34, now);
-    downGain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+    down.frequency.setValueAtTime(360, now);
+    down.frequency.exponentialRampToValueAtTime(120, now + 0.055);
+    downGain.gain.setValueAtTime(0.62, now);
+    downGain.gain.exponentialRampToValueAtTime(0.001, now + 0.085);
     down.connect(downGain);
     downGain.connect(out);
     down.start(now);
-    down.stop(now + 0.075);
+    down.stop(now + 0.09);
 
     const contact = c.createOscillator();
     const contactGain = c.createGain();
     contact.type = 'triangle';
-    contact.frequency.value = 1050;
-    contactGain.gain.setValueAtTime(0.16, now + 0.012);
-    contactGain.gain.exponentialRampToValueAtTime(0.001, now + 0.038);
+    contact.frequency.value = 1380;
+    contactGain.gain.setValueAtTime(0.32, now + 0.006);
+    contactGain.gain.exponentialRampToValueAtTime(0.001, now + 0.034);
     contact.connect(contactGain);
     contactGain.connect(out);
-    contact.start(now + 0.012);
-    contact.stop(now + 0.045);
+    contact.start(now + 0.006);
+    contact.stop(now + 0.04);
 
     const spring = c.createOscillator();
     const springGain = c.createGain();
     spring.type = 'square';
-    spring.frequency.setValueAtTime(640, now + 0.085);
-    spring.frequency.exponentialRampToValueAtTime(420, now + 0.14);
-    springGain.gain.setValueAtTime(0, now + 0.075);
-    springGain.gain.linearRampToValueAtTime(0.12, now + 0.088);
-    springGain.gain.exponentialRampToValueAtTime(0.001, now + 0.145);
+    spring.frequency.setValueAtTime(720, now + 0.085);
+    spring.frequency.exponentialRampToValueAtTime(390, now + 0.15);
+    springGain.gain.setValueAtTime(0, now + 0.07);
+    springGain.gain.linearRampToValueAtTime(0.2, now + 0.086);
+    springGain.gain.exponentialRampToValueAtTime(0.001, now + 0.155);
     spring.connect(springGain);
     springGain.connect(out);
     spring.start(now + 0.075);
-    spring.stop(now + 0.15);
+    spring.stop(now + 0.16);
 
     setTimeout(() => out.disconnect(), 190);
   });

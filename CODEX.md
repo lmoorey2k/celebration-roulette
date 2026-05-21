@@ -1381,3 +1381,25 @@ This pass follows `0649cb2` (`Move audio version badge onto cabinet`). The desir
 ### Key invariant for future agents
 - Keep the button sound short enough that the 1000ms preroll still feels like a pause before reel motion.
 - If this works directionally but feels too quiet/loud on iPhone, tune only `playLeverPull()` gain values before changing reel timing.
+
+---
+
+## 38. Audio V1.3 Immediate Button Press + Persistent Spin Again — 2026-05-21
+
+### Starting point / rollback
+This pass follows `b22f940` (`Add button press sound before reel preroll`). iPhone testing showed the button sound still felt delayed/too subtle, and the cabinet button label changed back to `SPIN` during the next spin after a result.
+
+### Version marker
+- Current audio checkpoint: `audio-v1.3-button-immediate-1000ms`
+- Visible badge: `v1.3 | 1000ms`
+
+### Changes
+- Moved the spin button sound to `onPressIn` so it fires on finger-down instead of waiting for the completed press.
+- Kept a fallback in `handleSpin(true)` so keyboard/accessibility activation can still play the sound if `onPressIn` did not.
+- Warms the web audio stream during touch unlock with `kickStream()` to reduce iPhone Safari startup latency.
+- Made the button press sound louder and more distinct.
+- Added `hasCompletedSpin` in `app/index.tsx`; the cabinet button starts as `SPIN` and stays `SPIN AGAIN` after the first completed spin, including during later spins.
+
+### Key invariant for future agents
+- Do not tie the main cabinet button label directly to `spinState === 'result'`; use the completed-spin history so it does not flicker back to `SPIN`.
+- If the button sound still feels delayed on iPhone, keep investigating touch/audio unlock timing before changing the 1000ms reel preroll.

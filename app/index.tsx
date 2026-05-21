@@ -45,6 +45,7 @@ export default function HomeScreen() {
   const { spinPool, weightedPool } = useRestaurantContext();
   const [spinState, setSpinState] = useState<SpinState>('idle');
   const [winner,    setWinner]    = useState<Restaurant | null>(null);
+  const [hasCompletedSpin, setHasCompletedSpin] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [activeCategory, setActiveCategory] = useState<Category>('all');
   // Tracks whether the rigged Sunday Chick-fil-A spin has already been used
@@ -97,6 +98,7 @@ export default function HomeScreen() {
 
   const handleSpinComplete = useCallback((restaurant: Restaurant) => {
     setWinner(restaurant);
+    setHasCompletedSpin(true);
     setSpinState('result');
     // Sunday Chick-fil-A Easter egg: play the sad trombone instead of the
     // celebration sound, and skip confetti so the "closed" message lands clearly.
@@ -148,7 +150,7 @@ export default function HomeScreen() {
             activeCategory={activeCategory}
             onCategoryChange={setActiveCategory}
             shouldWinChickFilA={shouldWinChickFilA}
-            spinLabel={spinState === 'result' ? 'SPIN AGAIN' : 'SPIN'}
+            spinLabel={hasCompletedSpin ? 'SPIN AGAIN' : 'SPIN'}
           />
         </View>
 
