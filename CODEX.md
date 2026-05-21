@@ -1123,3 +1123,25 @@ This tuning pass follows `ef0fdd7` (`Improve per-reel slot machine audio`). If t
 - If tick timing still feels late, tune `TICK_LEAD_RATIO` before changing animation timing.
 - If iPhone still does not reveal the step-down, tune the `levelByActiveReels` values in `playTick()`.
 - Keep this as a separate tuning commit so the first per-reel audio pass and this timing/tonal adjustment can be compared independently.
+
+---
+
+## 27. Mechanical Tick Timbre Tuning — 2026-05-21
+
+### Starting point / rollback
+This tuning pass follows `a12bed7` (`Tune slot audio timing and step-down`). The timing and 3→2→1 reel step-down were reported as much better on both desktop and iPhone, so this pass preserves those behaviors and changes only the tick timbre.
+
+### Feedback addressed
+- The timing felt better.
+- The rolling sound now stepped down correctly on both desktop and iPhone.
+- The overall rolling/tick sound was not liked; it felt too much like a whirling/tonal sound rather than a slot-machine reel turning.
+
+### Changes
+- Replaced the tonal triangle-oscillator tick with a short filtered noise click plus a very short low square-wave knock.
+- Kept the existing `TICK_LEAD_RATIO` timing behavior from the previous pass.
+- Kept the explicit active-reel volume levels so the mobile step-down remains obvious.
+- Left reel-stop clunks mostly unchanged from the prior pass; the main disliked sound was the rolling/tick texture.
+
+### Key invariant for future agents
+- If the rolling sound still feels wrong, continue tuning `playTick()` in `utils/audio.ts` without changing `SlotMachine.tsx` timing unless the sync regresses.
+- The current desired direction is mechanical reel teeth/clicks, not a pitched musical/whirring tone.
