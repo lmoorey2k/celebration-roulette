@@ -1360,3 +1360,24 @@ This pass follows `3168eff` (`Show audio timing version and double preroll`). Th
 
 ### Key invariant for future agents
 - During audio testing, keep the visible badge near the cabinet top so iPhone checks can confirm the deployed version without scrolling.
+
+---
+
+## 37. Audio V1.2 Button Press + 1000ms Preroll — 2026-05-21
+
+### Starting point / rollback
+This pass follows `0649cb2` (`Move audio version badge onto cabinet`). The desired behavior is now explicit: pressing the spin button should make a distinct button sound immediately, then the reels should wait one second before rolling.
+
+### Version marker
+- Current audio checkpoint: `audio-v1.2-button-1000ms`
+- Visible badge: `v1.2 | 1000ms`
+
+### Changes
+- Kept `SPIN_PREROLL_MS = 1000`.
+- Reworked `playLeverPull()` into a short mechanical button press sound: button-down thunk, contact click, and small spring/release tick.
+- Removed the longer sawtooth scrape from the initial press sound so the first second reads as button engagement, not reel movement.
+- Left reel rolling and stop sounds unchanged from v1.1.
+
+### Key invariant for future agents
+- Keep the button sound short enough that the 1000ms preroll still feels like a pause before reel motion.
+- If this works directionally but feels too quiet/loud on iPhone, tune only `playLeverPull()` gain values before changing reel timing.
