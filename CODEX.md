@@ -1324,3 +1324,24 @@ This pass follows `7e55e46` (`Add mechanical preroll before reel motion`). The a
 - If the stop clunk feels early or late, tune `SYNTH_STOP_LEAD_MS` before changing reel animation durations.
 - If the button-to-reel delay feels wrong, tune `SPIN_PREROLL_MS`.
 - Do not reintroduce full-event slot-machine recordings unless they are split into controllable start, loop, and stop pieces that match the app's animation timing.
+
+---
+
+## 35. Audio V1.1 Preroll Visibility — 2026-05-21
+
+### Starting point / rollback
+This pass follows `46b811f` (`Reset slot audio to mechanical v1`). The next test is specifically about whether the button-to-reel delay should be longer and whether the active audio timing version should be visible during testing.
+
+### Version marker
+- Current audio checkpoint: `audio-v1.1-mechanical-1000ms`
+- The visible slot screen label now shows the audio checkpoint and preroll value.
+
+### Changes
+- Doubled `SPIN_PREROLL_MS` from 500ms to 1000ms.
+- Updated `SLOT_AUDIO_VERSION` to `audio-v1.1-mechanical-1000ms`.
+- Added a small visible timing/version label below the slot machine: `audio-v1.1-mechanical-1000ms | preroll 1000ms`.
+- Stop sound scheduling still uses `SPIN_PREROLL_MS + duration - SYNTH_STOP_LEAD_MS`, so the stop clunks remain aligned with the delayed reel motion.
+
+### Key invariant for future agents
+- While audio is being tuned, keep the visible label in sync with `SLOT_AUDIO_VERSION` and `SPIN_PREROLL_MS`.
+- If the testing label should be removed for production later, remove only the visible label; keep `SLOT_AUDIO_VERSION` for rollback/debugging.

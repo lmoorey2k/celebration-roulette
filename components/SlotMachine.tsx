@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import { getOddsMultiplier, type Restaurant } from '@/hooks/useRestaurants';
 import { FontSizes, Radii } from '@/constants/theme';
-import { resumeAudio, playLeverPull, playTick, playReelStop, playWinDing } from '@/utils/audio';
+import { resumeAudio, playLeverPull, playTick, playReelStop, playWinDing, SLOT_AUDIO_VERSION } from '@/utils/audio';
 import { CATEGORIES, type Category } from './CategoryFilter';
 
 const CABINET_IMAGE = require('../assets/images/slot-machine-cabinet.png');
@@ -36,8 +36,9 @@ const DURATIONS = [3200, 4600, 6000];
 const ROTATIONS = [12, 15, 18];
 const SPRING_F = 16;
 const SPRING_T = 240;
-const SPIN_PREROLL_MS = 500;
+const SPIN_PREROLL_MS = 1000;
 const SYNTH_STOP_LEAD_MS = 120;
+const AUDIO_TEST_LABEL = `${SLOT_AUDIO_VERSION} | preroll ${SPIN_PREROLL_MS}ms`;
 // Fire tick sounds slightly before the visual row boundary. Browser/iOS audio
 // output has a little latency, so exact-boundary scheduling feels behind.
 const TICK_LEAD_RATIO = 0.38;
@@ -440,6 +441,7 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
           <Text style={styles.spinButtonText}>{pool.length < 2 ? 'NO PICKS' : spinLabel}</Text>
         </Pressable>
       </View>
+      <Text style={styles.audioVersionText}>{AUDIO_TEST_LABEL}</Text>
     </View>
   );
 });
@@ -481,4 +483,5 @@ const styles = StyleSheet.create({
   },
   spinButtonDisabled: { opacity: 1 },
   spinButtonText: { color: P.greenDark, fontSize: FontSizes.sm, fontWeight: '900', letterSpacing: 0, textAlign: 'center', ...(FONT_SANS ? ({ fontFamily: FONT_SANS } as any) : {}) },
+  audioVersionText: { color: P.inkSoft, fontSize: 11, fontWeight: '700', opacity: 0.72, textAlign: 'center', ...(FONT_SANS ? ({ fontFamily: FONT_SANS } as any) : {}) },
 });
