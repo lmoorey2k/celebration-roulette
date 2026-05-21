@@ -1200,3 +1200,35 @@ Useful search terms:
 
 ### Next implementation note
 When a good licensed loop is found, reintroduce sample-bed playback as a new isolated commit. Keep the existing timing/step-down code from `5098a7a`, but swap in the clean loop instead of a full event recording. Document source, license, and download URL here.
+
+---
+
+## 30. Approved Reel Sample Asset Pass — 2026-05-21
+
+### Starting point / rollback
+This pass follows `ea86ccb` and reintroduces sample-based reel audio, but uses user-provided/approved source clips instead of the rejected full-event Freesound sample. If disliked, revert the commit following this note; the synthesized fallback timing from `5098a7a` remains the baseline underneath.
+
+### Source / approval
+The user provided and approved these source files for use:
+- `1-slot-machine-loose-4msgywok.wav` — 3.0s, stereo, 44.1kHz, 16-bit PCM
+- `1-spin-reel-stop-vjal3u5g.wav` — 2.0s, stereo, 44.1kHz, 16-bit PCM
+
+### Derived app assets
+Generated under `public/audio/`:
+- `slot-reel-start-approved.wav` — 0.38s startup/engage sound trimmed from the first source clip
+- `slot-reel-spin-bed-approved.wav` — 7.2s extended spin bed created from the steady middle of the first source clip with overlap/crossfade extension
+- `slot-reel-stop-approved.wav` — 0.325s stop hit trimmed around the useful transient in the second source clip
+
+### Implementation
+- `utils/audio.ts` adds HTML-audio sample helpers:
+  - `startReelSampleSpin()`
+  - `setReelSampleActiveReels()`
+  - `stopReelSampleSpin()`
+  - `playSampleReelStop()`
+- `SlotMachine.tsx` starts the approved sample bed at spin start, lowers the bed level as reels stop, stops it after the final reel, and plays the approved stop sample per reel.
+- The synthetic tick/clunk logic remains as fallback if sample playback fails or is unavailable.
+
+### Key invariant for future agents
+- Keep approved audio assets under `public/audio/` so Expo web can serve them directly.
+- If the sample bed feels misaligned, tune the derived asset trim/crossfade or sample-bed volume/fade constants before changing reel animation timing.
+- Do not remove the synthetic fallback unless native/mobile sample playback is fully implemented and tested.

@@ -17,6 +17,9 @@ let _unlocked = false;
 let _streamDest: MediaStreamAudioDestinationNode | null = null;
 let _streamEl: HTMLAudioElement | null = null;
 let _streamStopTimer: ReturnType<typeof setTimeout> | null = null;
+let _sampleSpinBed: HTMLAudioElement | null = null;
+let _sampleBedFadeTimer: ReturnType<typeof setInterval> | null = null;
+let _sampleBedActive = false;
 
 // How long after the last sound before we pause the stream element.
 // Must be longer than the longest sound effect (~1s for celebration/sadTrombone).
@@ -58,6 +61,94 @@ function audioOut(c: AudioContext): AudioNode {
   if (!dest) return c.destination;
   kickStream();
   return dest;
+}
+
+// ─── Approved reel samples ─────────────────────────────────────────────────
+// These are user-approved WAVs derived from provided source clips. They play
+// through HTML audio on web so they follow the same reliable path as the iOS
+// WebKit audio workaround.
+const SAMPLE_REEL_START = '/audio/slot-reel-start-approved.wav';
+const SAMPLE_REEL_BED = '/audio/slot-reel-spin-bed-approved.wav';
+const SAMPLE_REEL_STOP = '/audio/slot-reel-stop-approved.wav';
+const SAMPLE_BED_VOLUME_BY_ACTIVE_REELS: Record<number, number> = { 1: 0.12, 2: 0.2, 3: 0.28 };
+
+function canUseHtmlAudio(): boolean {
+  return Platform.OS === 'web' && typeof Audio !== 'undefined';
+}
+
+function playHtmlSample(src: string, volume: number, playbackRate = 1): boolean {
+  if (!canUseHtmlAudio()) return false;
+  try {
+    const el = new Audio(src);
+    el.preload = 'auto';
+    el.volume = volume;
+    el.playbackRate = playbackRate;
+    el.play().catch(() => {});
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function fadeSampleBed(toVolume: number, duration = 180, stopAfter = false): void {
+  if (!_sampleSpinBed) return;
+  if (_sampleBedFadeTimer) clearInterval(_sampleBedFadeTimer);
+
+  const el = _sampleSpinBed;
+  const fromVolume = el.volume;
+  const started = Date.now();
+  _sampleBedFadeTimer = setInterval(() => {
+    const t = Math.min(1, (Date.now() - started) / duration);
+    el.volume = fromVolume + (toVolume - fromVolume) * t;
+    if (t >= 1) {
+      if (_sampleBedFadeTimer) clearInterval(_sampleBedFadeTimer);
+      _sampleBedFadeTimer = null;
+      if (stopAfter) el.pause();
+    }
+  }, 30);
+}
+
+function setSampleBedActiveReels(activeReels: number): void {
+  const active = Math.max(0, Math.min(3, activeReels));
+  fadeSampleBed(SAMPLE_BED_VOLUME_BY_ACTIVE_REELS[active] ?? 0.28, 160);
+}
+
+export function startReelSampleSpin(): boolean {
+  if (!canUseHtmlAudio()) return false;
+  playHtmlSample(SAMPLE_REEL_START, 0.62);
+
+  try {
+    const el = _sampleSpinBed ?? new Audio(SAMPLE_REEL_BED);
+    _sampleSpinBed = el;
+    el.loop = false;
+    el.preload = 'auto';
+    el.volume = SAMPLE_BED_VOLUME_BY_ACTIVE_REELS[3];
+    el.currentTime = 0;
+    _sampleBedActive = true;
+    el.onended = () => { _sampleBedActive = false; };
+    el.play().catch(() => { _sampleBedActive = false; });
+    return true;
+  } catch {
+    _sampleBedActive = false;
+    return false;
+  }
+}
+
+export function setReelSampleActiveReels(activeReels: number): void {
+  if (!_sampleBedActive) return;
+  setSampleBedActiveReels(activeReels);
+}
+
+export function stopReelSampleSpin(): void {
+  if (!_sampleBedActive) return;
+  _sampleBedActive = false;
+  fadeSampleBed(0, 140, true);
+}
+
+export function playSampleReelStop(stopRank = 0, isFinal = false): boolean {
+  const volume = isFinal ? 0.78 : 0.52 + stopRank * 0.08;
+  const rate = isFinal ? 0.94 : 1 + stopRank * 0.02;
+  return playHtmlSample(SAMPLE_REEL_STOP, volume, rate);
 }
 
 // ─── Sunday detection ────────────────────────────────────────────────────────
@@ -235,6 +326,7 @@ export function playLeverPull(): void {
 }
 
 export function playTick(reel = 0, activeReels = 3, slowdown = 0): void {
+  if (_sampleBedActive) return;
   playWhenReady((c) => {
     const now = c.currentTime;
     const dest = audioOut(c);

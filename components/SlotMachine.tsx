@@ -20,7 +20,17 @@ import {
 } from 'react-native';
 import { getOddsMultiplier, type Restaurant } from '@/hooks/useRestaurants';
 import { FontSizes, Radii } from '@/constants/theme';
-import { resumeAudio, playLeverPull, playTick, playReelStop, playWinDing } from '@/utils/audio';
+import {
+  resumeAudio,
+  playLeverPull,
+  playTick,
+  playReelStop,
+  playWinDing,
+  startReelSampleSpin,
+  setReelSampleActiveReels,
+  stopReelSampleSpin,
+  playSampleReelStop,
+} from '@/utils/audio';
 import { CATEGORIES, type Category } from './CategoryFilter';
 
 const CABINET_IMAGE = require('../assets/images/slot-machine-cabinet.png');
@@ -262,12 +272,13 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
     setShowGlow(false); stopGlow(); setReelItems(defaultItems());
   }, [poolKey, activeCategory, anims, defaultItems, stopGlow]);
 
-  useEffect(() => () => { clearAllTicks(); stopGlow(); }, [clearAllTicks, stopGlow]);
+  useEffect(() => () => { clearAllTicks(); stopReelSampleSpin(); stopGlow(); }, [clearAllTicks, stopGlow]);
 
   const handleSpin = useCallback((playSound = true) => {
     if (spinning || pool.length < 2) return;
     resumeAudio();
     if (playSound) playLeverPull();
+    const usingSampleSpin = playSound ? startReelSampleSpin() : false;
 
     // Sunday Easter egg: if shouldWinChickFilA is set AND Chick-fil-A is in
     // the current pool, force it to win. The animation still looks completely
@@ -333,7 +344,11 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
         clearReelTick(i);
         const stopRank = profile(i);
         stoppedReels.current += 1;
-        playReelStop(i, stopRank, stoppedReels.current === NUM_REELS);
+        const remainingReels = NUM_REELS - stoppedReels.current;
+        setReelSampleActiveReels(remainingReels);
+        if (remainingReels === 0) stopReelSampleSpin();
+        const playedSampleStop = usingSampleSpin && playSampleReelStop(stopRank, stoppedReels.current === NUM_REELS);
+        if (!playedSampleStop) playReelStop(i, stopRank, stoppedReels.current === NUM_REELS);
         finished += 1;
         if (finished === NUM_REELS) {
           isSpinActiveRef.current = false;
