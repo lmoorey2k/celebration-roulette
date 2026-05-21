@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import rawData from '@/data/restaurants.json';
 
 export interface Restaurant {
@@ -69,9 +69,34 @@ export function useRestaurants() {
     setRestaurants(prev => prev.map(r => ({ ...r, session_excluded: r.default_excluded })));
   }, []);
 
-  const spinPool = restaurants.filter(
-    (r) => r.active && r.eligible_for_wheel && !r.session_excluded
-  );
+  // Weight tier → internal multiplier for the weighted pick pool:
+  //   1 (Normal)    → 1×  (~2% with 54 restaurants)
+  //   2 (Boosted)   → 2×  (~4%)
+  //   3 (Featured)  → 5×  (~9%)
+  //   4 (Hot Pick)  → 10× (~16%)
+  //   5 (Sponsored) → 50× (~48%)
+  const WEIGHT_MULTIPLIER: Record<number, number> = { 1: 1, 2: 2, 3: 5, 4: 10, 5: 50 };
 
-  return { restaurants, spinPool, toggleSessionExclusion, resetSession, loadedFromApi };
+  // spinPool — unique list of eligible restaurants (for reel visuals & UI counts)
+  const spinPool = useMemo(() => {
+    return restaurants.filter(
+      (r) => r.active && r.eligible_for_wheel && !r.session_excluded
+    );
+  }, [restaurants]);
+
+  // weightedPool — same restaurants but duplicated by weight multiplier.
+  // Used ONLY for picking the winner: Math.random() selects from this array,
+  // so boosted restaurants have proportionally higher odds.
+  const weightedPool = useMemo(() => {
+    const weighted: Restaurant[] = [];
+    for (const r of spinPool) {
+      const mult = WEIGHT_MULTIPLIER[r.weight] ?? 1;
+      for (let i = 0; i < mult; i++) {
+        weighted.push(r);
+      }
+    }
+    return weighted;
+  }, [spinPool]);
+
+  return { restaurants, spinPool, weightedPool, toggleSessionExclusion, resetSession, loadedFromApi };
 }

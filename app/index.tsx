@@ -42,7 +42,7 @@ function isSundayOrForced(): boolean {
 
 export default function HomeScreen() {
   const router   = useRouter();
-  const { spinPool } = useRestaurantContext();
+  const { spinPool, weightedPool } = useRestaurantContext();
   const [spinState, setSpinState] = useState<SpinState>('idle');
   const [winner,    setWinner]    = useState<Restaurant | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -71,6 +71,12 @@ export default function HomeScreen() {
     // (they only appear in "All") to avoid polluting specific meal filters.
     return spinPool.filter((r) => r.categories?.includes(activeCategory));
   }, [spinPool, activeCategory]);
+
+  // Weighted version of the filtered pool — used only for picking the winner.
+  const filteredWeightedPool = useMemo(() => {
+    if (activeCategory === 'all') return weightedPool;
+    return weightedPool.filter((r) => r.categories?.includes(activeCategory));
+  }, [weightedPool, activeCategory]);
 
   const activeLabel = activeCategory === 'all'
     ? 'All dining'
@@ -135,6 +141,7 @@ export default function HomeScreen() {
           <SlotMachine
             ref={slotRef}
             pool={filteredPool}
+            weightedPool={filteredWeightedPool}
             spinning={spinState === 'spinning'}
             onSpinStart={handleSpinStart}
             onSpinComplete={handleSpinComplete}

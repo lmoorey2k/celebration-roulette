@@ -5,6 +5,7 @@ import type { Restaurant } from '@/hooks/useRestaurants';
 interface RestaurantContextValue {
   restaurants: Restaurant[];
   spinPool: Restaurant[];
+  weightedPool: Restaurant[];
   toggleSessionExclusion: (id: number) => void;
   resetSession: () => void;
 }

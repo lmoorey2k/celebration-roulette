@@ -141,6 +141,9 @@ export interface SlotMachineHandle {
 
 interface Props {
   pool: Restaurant[];
+  /** Weighted version of pool — restaurants with higher weight appear multiple
+   *  times. Used ONLY for picking the winner. Reel visuals use `pool` (unique). */
+  weightedPool?: Restaurant[];
   spinning: boolean;
   spinLabel?: string;
   onSpinStart: () => void;
@@ -158,7 +161,7 @@ interface Props {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function SlotMachine(
-  { pool, spinning, onSpinStart, onSpinComplete, spinLabel = 'SPIN', activeCategory, onCategoryChange, shouldWinChickFilA = false },
+  { pool, weightedPool, spinning, onSpinStart, onSpinComplete, spinLabel = 'SPIN', activeCategory, onCategoryChange, shouldWinChickFilA = false },
   ref,
 ) {
   // useWindowDimensions returns 0 during Expo static-export SSR hydration and
@@ -252,7 +255,10 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
     // random — only the final landing position is rigged.
     const CHICK_FIL_A_ID = 9;
     const chickFilA = shouldWinChickFilA ? pool.find((r) => r.id === CHICK_FIL_A_ID) : undefined;
-    const picked = chickFilA ?? pool[Math.floor(Math.random() * pool.length)];
+    // Pick winner from weighted pool (where boosted restaurants appear more often).
+    // Falls back to the display pool if weightedPool isn't provided.
+    const pickPool = weightedPool ?? pool;
+    const picked = chickFilA ?? pickPool[Math.floor(Math.random() * pickPool.length)];
     const stride = Math.max(1, Math.floor(pool.length / NUM_REELS));
     let stopOrder = STOP_ORDERS[Math.floor(Math.random() * STOP_ORDERS.length)];
     if (sameOrder(lastStopOrder.current, stopOrder)) {
@@ -306,7 +312,7 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
         }
       });
     });
-  }, [spinning, pool, itemH, anims, clearAllTicks, clearReelTick, onSpinStart, onSpinComplete, startGlow, stopGlow, shouldWinChickFilA]);
+  }, [spinning, pool, weightedPool, itemH, anims, clearAllTicks, clearReelTick, onSpinStart, onSpinComplete, startGlow, stopGlow, shouldWinChickFilA]);
 
   // Expose triggerSpin so the WinnerCard "Spin Again" button can fire a real spin
   useImperativeHandle(ref, () => ({ triggerSpin: () => handleSpin(true) }), [handleSpin]);
