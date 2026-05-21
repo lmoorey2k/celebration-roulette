@@ -1168,3 +1168,32 @@ This pass follows `3b16ca3` (`Tune slot tick timbre`). The timing and mobile ste
 - Preserve the `TICK_LEAD_RATIO` timing unless sync becomes a problem again.
 - If the reel slowdown still is not audible enough, tune the `slowdown` curve in `SlotMachine.tsx` or the pitch/duration changes in `playTick()`, not the visual animation.
 - The target sound is mechanical ratchet/slot reel teeth, not card shuffle, fan noise, or musical whirr.
+
+---
+
+## 29. Real Slot Reel Sample Bed — 2026-05-21
+
+### Starting point / rollback
+This pass follows `5098a7a` (`Tune decelerating slot ratchet audio`). The slowing/timing direction was good, but the synthesized spin sound direction was judged progressively worse. This pass resets the spin texture by using a real slot-machine reel sample while keeping the existing timing/step-down system.
+
+### Source / license
+- Asset file: `public/audio/slot-machine-reels-aghirlandaio-cc0.mp3`
+- Source page: `https://freesound.org/people/aghirlandaio/sounds/415074/`
+- Title: `slot machine reels sound.m4a`
+- Creator: `aghirlandaio`
+- License: Creative Commons 0 (`https://creativecommons.org/publicdomain/zero/1.0/`)
+- Freesound page states: "You can copy, modify, distribute and perform the sound, even for commercial purposes, all without the need of asking permission to the author."
+- The checked-in file is the public high-quality MP3 preview from Freesound's CDN, downloaded from `https://cdn.freesound.org/previews/415/415074_8181829-hq.mp3`.
+
+### Changes
+- Added the CC0 reel-spin sample under `public/audio/` so it is served by the Expo web build.
+- Added `startReelSpinBeds()`, `stopReelSpinBed()`, and `stopAllReelSpinBeds()` in `utils/audio.ts`.
+- `SlotMachine.tsx` now starts three staggered looping reel beds at spin start.
+- As each reel stops, its corresponding bed fades out; the remaining beds fade down to preserve the 3→2→1 step-down.
+- `playTick()` now returns early while the real reel bed is active, so the disliked synthesized tick does not layer over the sample. It remains as fallback if the sample bed cannot play.
+- Existing reel-stop clunks are still layered on top.
+
+### Key invariant for future agents
+- Do not use unlicensed/random YouTube audio. Any real audio asset must have a documented source and license in this file.
+- If this sample is disliked, keep the sample-bed plumbing and swap the asset first before returning to synthesized ticks.
+- If the sample sounds too busy, tune `REEL_BED_BASE_VOLUME` and `REEL_BED_VOLUME_BY_ACTIVE_REELS` in `utils/audio.ts`.

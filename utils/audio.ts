@@ -17,6 +17,9 @@ let _unlocked = false;
 let _streamDest: MediaStreamAudioDestinationNode | null = null;
 let _streamEl: HTMLAudioElement | null = null;
 let _streamStopTimer: ReturnType<typeof setTimeout> | null = null;
+let _reelBedEls: HTMLAudioElement[] = [];
+let _reelBedFadeTimers: Array<ReturnType<typeof setInterval> | null> = [];
+let _reelBedActive = false;
 
 // How long after the last sound before we pause the stream element.
 // Must be longer than the longest sound effect (~1s for celebration/sadTrombone).
@@ -58,6 +61,81 @@ function audioOut(c: AudioContext): AudioNode {
   if (!dest) return c.destination;
   kickStream();
   return dest;
+}
+
+// ─── Real reel-spin sample bed ──────────────────────────────────────────────
+// Source: Freesound sound 415074 by aghirlandaio, Creative Commons 0.
+// Served from public/audio so it can play through HTML audio on web.
+const REEL_BED_SRC = '/audio/slot-machine-reels-aghirlandaio-cc0.mp3';
+const REEL_BED_BASE_VOLUME = 0.22;
+const REEL_BED_VOLUME_BY_ACTIVE_REELS: Record<number, number> = { 1: 0.07, 2: 0.14, 3: 0.22 };
+
+function canUseHtmlAudio(): boolean {
+  return Platform.OS === 'web' && typeof Audio !== 'undefined';
+}
+
+function fadeReelBed(index: number, toVolume: number, duration = 180, stopAfter = false): void {
+  const el = _reelBedEls[index];
+  if (!el) return;
+  if (_reelBedFadeTimers[index]) clearInterval(_reelBedFadeTimers[index]!);
+
+  const fromVolume = el.volume;
+  const started = Date.now();
+  _reelBedFadeTimers[index] = setInterval(() => {
+    const t = Math.min(1, (Date.now() - started) / duration);
+    el.volume = fromVolume + (toVolume - fromVolume) * t;
+    if (t >= 1) {
+      if (_reelBedFadeTimers[index]) clearInterval(_reelBedFadeTimers[index]!);
+      _reelBedFadeTimers[index] = null;
+      if (stopAfter) {
+        el.pause();
+      }
+    }
+  }, 30);
+}
+
+function setActiveReelBedCount(activeReels: number, excludeIndex?: number): void {
+  const active = Math.max(0, Math.min(3, activeReels));
+  const target = REEL_BED_VOLUME_BY_ACTIVE_REELS[active] ?? REEL_BED_BASE_VOLUME;
+  _reelBedEls.forEach((el, index) => {
+    if (index === excludeIndex) return;
+    if (!el.paused) fadeReelBed(index, target, 140);
+  });
+}
+
+export function startReelSpinBeds(reels = 3): void {
+  if (!canUseHtmlAudio()) return;
+
+  _reelBedActive = true;
+  const count = Math.max(1, Math.min(3, reels));
+  for (let i = 0; i < count; i++) {
+    const el = _reelBedEls[i] ?? new Audio(REEL_BED_SRC);
+    _reelBedEls[i] = el;
+    el.loop = true;
+    el.preload = 'auto';
+    el.volume = REEL_BED_BASE_VOLUME;
+    try {
+      // Stagger each bed slightly so the combined texture does not phase like
+      // one copied file. Keep near the start to avoid unrelated later moments.
+      el.currentTime = i * 0.32;
+    } catch { /* harmless when metadata is not ready yet */ }
+    el.play().catch(() => {
+      _reelBedActive = false;
+    });
+  }
+  setActiveReelBedCount(count);
+}
+
+export function stopReelSpinBed(reel: number, remainingReels: number): void {
+  if (!_reelBedActive) return;
+  fadeReelBed(reel, 0, 180, true);
+  setActiveReelBedCount(remainingReels, reel);
+  if (remainingReels <= 0) _reelBedActive = false;
+}
+
+export function stopAllReelSpinBeds(): void {
+  _reelBedActive = false;
+  _reelBedEls.forEach((_, index) => fadeReelBed(index, 0, 120, true));
 }
 
 // ─── Sunday detection ────────────────────────────────────────────────────────
@@ -235,6 +313,7 @@ export function playLeverPull(): void {
 }
 
 export function playTick(reel = 0, activeReels = 3, slowdown = 0): void {
+  if (_reelBedActive) return;
   playWhenReady((c) => {
     const now = c.currentTime;
     const dest = audioOut(c);
