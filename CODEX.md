@@ -991,3 +991,23 @@ Both pools are filtered by category. The `filteredWeightedPool` in `index.tsx` m
 - `components/SlotMachine.tsx` — `weightedPool` prop; `pickPool` used in `handleSpin`
 - `app/index.tsx` — `filteredWeightedPool` computed; passed to `<SlotMachine>`
 - `celebration-backend/pages/admin/index.tsx` — slider labels updated with tier names and approximate odds; Hot Pick/Sponsored use orange/red accent colors
+
+---
+
+## 22. Vercel Deployment Fix — Git Email Mismatch — 2026-05-20
+
+### Problem
+Vercel blocked deployments for `celebration-backend` with the error: "The commit email lmoorey2k@github.com could not be matched to a GitHub account." Two consecutive deployments (the logo auto-fetch commit and the weight slider labels commit) were both blocked.
+
+### Root cause
+The local git config for the repo used `lmoorey2k@github.com` as the commit author email. This is a GitHub username-based alias that Vercel's Hobby plan cannot resolve to a GitHub account. The actual verified email on the GitHub account is `lmoore7@gmail.com`.
+
+### Fix
+1. Set the correct email in the repo's local git config: `git config user.email "lmoore7@gmail.com"`
+2. Made a new commit with the correct email to trigger a fresh Vercel deployment
+3. Also fixed the email in the `Celebration-Roulet` repo to prevent the same issue there
+
+### Key note for future agents
+- The git email for **both** repos (`celebration-backend` and `Celebration-Roulet`) must be `lmoore7@gmail.com` — this matches the verified email on the GitHub account `lmoorey2k`
+- Never use `lmoorey2k@github.com` — Vercel cannot match it
+- The GitHub noreply email `272659109+lmoorey2k@users.noreply.github.com` would also work if privacy is preferred
