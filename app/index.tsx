@@ -19,7 +19,7 @@ import type { Restaurant } from '@/hooks/useRestaurants';
 import { SlotMachine, type SlotMachineHandle } from '@/components/SlotMachine';
 import { Confetti } from '@/components/Confetti';
 import type { Category } from '@/components/CategoryFilter';
-import { playCelebration, playSadTrombone, resumeAudio, isSunday, getAudioDebugInfo, playTestBeep, playHtmlAudioTest } from '@/utils/audio';
+import { playCelebration, playSadTrombone, resumeAudio, isSunday } from '@/utils/audio';
 import { openListing, openWebsite } from '@/utils/maps';
 import { Colors, FontSizes, Radii, Shadow, Spacing } from '@/constants/theme';
 
@@ -130,10 +130,7 @@ export default function HomeScreen() {
           <View style={styles.machineIntro}>
             <Text style={styles.machineTitle}>Where should we dine?</Text>
             <Text style={styles.machineHint}>Pick a category and let the reels decide.</Text>
-            <Text style={styles.versionTag}>v1.7.0</Text>
           </View>
-
-          <AudioDebugPanel />
 
           <SlotMachine
             ref={slotRef}
@@ -258,64 +255,6 @@ function WinnerCard({ winner }: { winner: Restaurant }) {
   );
 }
 
-// ─── Audio Debug Panel (temporary) ──────────────────────────────────────────
-// Shows AudioContext state and provides a direct test beep button.
-// Remove this once audio is confirmed working on all devices.
-function AudioDebugPanel() {
-  const [info, setInfo] = useState({ state: '?', unlocked: false, ctxExists: false, streamActive: false, streamElPaused: null as boolean | null });
-  const [tapCount, setTapCount] = useState(0);
-
-  const refresh = useCallback(() => {
-    setInfo(getAudioDebugInfo());
-  }, []);
-
-  useEffect(() => {
-    refresh();
-    const id = setInterval(refresh, 500);
-    return () => clearInterval(id);
-  }, [refresh]);
-
-  const handleTestBeep = useCallback(() => {
-    resumeAudio();
-    playTestBeep();
-    setTapCount(n => n + 1);
-    setTimeout(refresh, 100);
-  }, [refresh]);
-
-  const stateColor = info.state === 'running' ? '#0a0' : info.state === 'suspended' ? '#c60' : '#c00';
-
-  return (
-    <View style={{ backgroundColor: '#111', borderRadius: 8, padding: 10, width: '100%', maxWidth: 360, marginVertical: 8 }}>
-      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12, marginBottom: 6 }}>🔊 Audio Debug (temp)</Text>
-      <Text style={{ color: stateColor, fontSize: 11, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined }}>
-        ctx: {info.ctxExists ? 'YES' : 'NO'} | state: {info.state} | unlocked: {info.unlocked ? '✅' : '❌'}
-      </Text>
-      <Text style={{ color: '#6af', fontSize: 11, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined }}>
-        stream: {info.streamActive ? '✅' : '❌'} | el: {info.streamElPaused === null ? 'none' : info.streamElPaused ? 'PAUSED' : 'playing'}
-      </Text>
-      <Text style={{ color: '#999', fontSize: 11, marginTop: 2 }}>
-        test taps: {tapCount}
-      </Text>
-      <Pressable
-        onPress={handleTestBeep}
-        style={{ marginTop: 8, backgroundColor: '#2a6', borderRadius: 6, paddingVertical: 8, alignItems: 'center' }}
-      >
-        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>▶ Test 1: Web Audio (oscillator)</Text>
-      </Pressable>
-      <Pressable
-        onPress={() => { playHtmlAudioTest(); setTapCount(n => n + 1); }}
-        style={{ marginTop: 6, backgroundColor: '#26a', borderRadius: 6, paddingVertical: 8, alignItems: 'center' }}
-      >
-        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>▶ Test 2: HTML Audio (WAV file)</Text>
-      </Pressable>
-      <Text style={{ color: '#777', fontSize: 10, marginTop: 6, lineHeight: 14 }}>
-        If Test 2 works but Test 1 doesn't → Web Audio routing issue{'\n'}
-        If NEITHER works → media volume is at 0 (press volume up while tapping)
-      </Text>
-    </View>
-  );
-}
-
 // ─── Sunday Chick-fil-A closed overlay (Easter egg) ──────────────────────────
 //
 // Full-screen takeover that fires after the rigged Sunday spin. Designed to
@@ -436,7 +375,6 @@ const styles = StyleSheet.create({
   machineIntro: { width: '100%', paddingHorizontal: Spacing.lg, gap: 6, alignItems: 'center' },
   machineTitle: { color: Colors.primary, fontSize: FontSizes.xl, lineHeight: 28, fontWeight: '800', textAlign: 'center' },
   machineHint: { color: Colors.textMuted, fontSize: FontSizes.md, lineHeight: 22, textAlign: 'center', maxWidth: 460 },
-  versionTag: { color: Colors.textMuted, fontSize: 10, opacity: 0.5, textAlign: 'center', marginTop: 2 },
   footer: { alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.lg, maxWidth: 760 },
   emptyNote: { fontSize: FontSizes.sm, color: Colors.textMuted, textAlign: 'center', lineHeight: 18, maxWidth: 420 },
   listLink: { paddingVertical: Spacing.sm },

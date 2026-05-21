@@ -913,18 +913,41 @@ https://celebration-roulette.vercel.app?testSunday=1
 
 ---
 
-## 20. Session Changes — 2026-05-20 (continued)
+## 20. Session Changes — 2026-05-20 (audio debugging + fixes)
 
 ### Desktop spin button vertical position (tuning)
 - Ratio adjusted from `0.845` → `0.827` in `components/SlotMachine.tsx`
 - `0.812` was too high (original), `0.845` was too low; `0.827` splits the difference
 - Mobile unaffected (ratio is `0.812` when `cabinetW < 680`)
 
-### iOS audio fix (`utils/audio.ts`)
-**Problem:** Sound was completely silent on iPhone in both Safari and Chrome.
+### iOS audio — full diagnosis and final fix (`utils/audio.ts`)
 
-**Root cause:** iOS WebKit (used by both Safari and Chrome on iPhone) requires `AudioContext.resume()` to be called inside a *direct* native gesture stack frame. React's synthetic event system breaks this chain — by the time `onPress` fires, iOS no longer accepts it as a "user gesture" for audio unlock purposes.
+This was a multi-step investigation. Summary of everything found and fixed:
 
-**Fix:** Added `setupIOSTouchUnlock()` to `utils/audio.ts`. It attaches `touchstart`/`touchend` listeners at the **capture phase** on `document` (before React sees the event). This fires synchronously inside the real gesture, which iOS accepts. On first touch anywhere on the screen, the AudioContext is created, `resume()` is called, and the silent buffer unlock runs. Listeners remove themselves after the first unlock. Runs automatically when the module is imported on web.
+#### Problem 1: React synthetic events block AudioContext unlock
+iOS WebKit requires `AudioContext.resume()` inside a *direct* native gesture stack frame. React's `onPress` fires too late — iOS rejects it. Fixed by adding `setupIOSTouchUnlock()` with **capture-phase** `touchstart`/`touchend` listeners on `document`, which fire before React sees the event.
 
-**Key invariant:** The capture-phase approach also works when the app is embedded in an iframe (visitcelebration.org embed), so audio will work there too on iOS without any additional changes.
+#### Problem 2: Silent switch / Action Button muting Web Audio
+iOS classifies Web Audio API oscillators as "ambient" audio, which gets muted by the silent switch. Fixed by playing a programmatically-generated silent WAV through an `<audio>` element on first touch, which registers the page as "media playback" and bypasses the mute switch. The WAV is built using `DataView` (44-byte RIFF header + 1 silent PCM sample) — no external file needed.
+
+#### Problem 3: Audio dies after screen lock / app switch / interruption
+iOS can interrupt the AudioContext at any time (setting state to `'suspended'` or `'interrupted'`). The original code removed the touch listeners after first unlock, leaving no recovery path. Fixed by:
+- Making touch listeners **permanent** (never removed)
+- Adding a `statechange` listener on the AudioContext that resets `_unlocked = false` whenever state leaves `'running'`, triggering full re-unlock on next gesture
+- Handling both `'suspended'` and `'interrupted'` states in `playWhenReady()` via `needsResume()` helper
+
+#### Problem 4 (root cause of "starts working then stops"): AudioContext destination silently disconnects
+**Key finding from debug panel:** `AudioContext.state === 'running'` and `_unlocked === true`, but **zero sound from oscillators** — while HTML `<audio>` elements played fine. This confirmed a known iOS Safari/WebKit bug: after repeated use or interruptions, `ctx.destination` silently disconnects from the hardware output while the context still reports `'running'`.
+
+**Diagnostic approach:** Added a temporary debug panel to `app/index.tsx` (now removed) with two test buttons — one using Web Audio oscillators, one playing a WAV via `<audio>`. Oscillator: silent. WAV: audible. This isolated the bug precisely.
+
+**Fix:** Introduced `audioOut(c)` in `utils/audio.ts`. On web, this creates a `MediaStreamAudioDestinationNode` and pipes its output through an `<audio>` element (`_streamEl.srcObject = _streamDest.stream`). Every oscillator and gain node in the app now connects to `audioOut(c)` instead of `c.destination`. Since HTML audio is reliably hardware-connected, this bypasses the WebKit bug entirely.
+
+The MediaStream element is also re-kicked (`_streamEl.play()`) on every touch if iOS has paused it, and reset entirely (along with `_streamDest`) whenever the AudioContext is interrupted, so a fresh routing chain is built on the next gesture.
+
+#### Key invariant for future agents
+All sound functions **must** connect to `audioOut(c)`, not `c.destination`. The only exception is `unlockAudio()`, which intentionally connects to `c.destination` to perform the initial silent-buffer gesture unlock (this must hit the raw destination to satisfy iOS's unlock requirement before the stream is set up).
+
+#### Files changed
+- `utils/audio.ts` — all fixes above; `masterGain()` updated; `audioOut()` added
+- `app/index.tsx` — debug panel added during investigation, then removed after fix confirmed
