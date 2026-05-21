@@ -46,6 +46,7 @@ const DURATIONS = [3200, 4600, 6000];
 const ROTATIONS = [12, 15, 18];
 const SPRING_F = 16;
 const SPRING_T = 240;
+const SPIN_PREROLL_MS = 500;
 // Fire tick sounds slightly before the visual row boundary. Browser/iOS audio
 // output has a little latency, so exact-boundary scheduling feels behind.
 const TICK_LEAD_RATIO = 0.38;
@@ -332,7 +333,7 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
     data.forEach((reelData, i) => {
       const stopRank = profile(i);
       if (usingSampleSpin) {
-        const stopLead = Math.max(0, DURATIONS[stopRank] - SAMPLE_STOP_LEAD_MS);
+        const stopLead = Math.max(0, SPIN_PREROLL_MS + DURATIONS[stopRank] - SAMPLE_STOP_LEAD_MS);
         sampleStopTimers[i] = setTimeout(() => {
           sampleStopPlayed.current[i] = playSampleReelStop(stopRank, stopRank === NUM_REELS - 1);
         }, stopLead);
@@ -347,6 +348,7 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
       Animated.timing(anims[i], {
         toValue: reelData.targetY,
         duration: DURATIONS[profile(i)],
+        delay: SPIN_PREROLL_MS,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }).start(({ finished: ok }) => {

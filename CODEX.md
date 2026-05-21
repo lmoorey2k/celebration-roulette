@@ -1283,3 +1283,20 @@ The user provided and approved a new 10.0s source file for the spin sound:
 - If stop sounds still feel late, tune `SAMPLE_STOP_LEAD_MS` before changing animation duration or easing.
 - If the spin start feels late, do **not** skip into this new bed unless the user says the startup transient is too early; the clip's natural start is intentional.
 - Keep the previous `slot-reel-start-approved.wav` file for now, but sample spins no longer use it.
+
+---
+
+## 33. Mechanical Spin Preroll Delay — 2026-05-21
+
+### Starting point / rollback
+This pass follows `e74481a` (`Use new approved spin bed timing`). The new approved spin bed has the desired button/start transient and a small natural ramp before the reels get going. The visual reels, however, still began moving immediately, so they did not match the mechanical delay in the audio.
+
+### Changes
+- Added `SPIN_PREROLL_MS = 500` in `components/SlotMachine.tsx`.
+- Reel animations now start 500ms after the audio/spin state begins, creating a short mechanical delay between pressing the button and visible reel motion.
+- Scheduled sample stop sounds now include the same preroll offset, so the early stop lead remains aligned with the delayed animation.
+
+### Key invariant for future agents
+- If the start feels too sluggish or too quick, tune `SPIN_PREROLL_MS` first.
+- If stop timing changes after adjusting preroll, make sure stop timers still include `SPIN_PREROLL_MS + duration - SAMPLE_STOP_LEAD_MS`.
+- The goal is for the audio startup/ramp to lead the visual reels, like a mechanical machine engaging before the reels reach speed.
