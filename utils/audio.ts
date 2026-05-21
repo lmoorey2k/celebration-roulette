@@ -11,13 +11,36 @@ export function isSunday(): boolean {
   return new Date().getDay() === 0;
 }
 
+// ─── AudioContext state helper ──────────────────────────────────────────────
+// iOS Safari has THREE AudioContext states, not two:
+//   'suspended' — initial state, or paused by the browser
+//   'running'   — actively processing audio
+//   'interrupted' — iOS stole audio focus (screen lock, phone call, Siri,
+//                   app switch, notification). This state is iOS-specific
+//                   and MUST be handled or audio dies permanently after any
+//                   interruption.
+// Any state that is not 'running' needs a resume() call.
+function needsResume(c: AudioContext): boolean {
+  return c.state !== 'running';
+}
+
 function ctx(): AudioContext | null {
   if (Platform.OS !== 'web') return null;
   if (typeof window === 'undefined') return null;
   if (!_ctx) {
     try {
       const Ctor = window.AudioContext ?? (window as any).webkitAudioContext;
-      if (Ctor) _ctx = new Ctor();
+      if (Ctor) {
+        _ctx = new Ctor();
+        // When iOS interrupts the AudioContext (screen lock, call, Siri, etc.),
+        // reset the unlock flag so the next user gesture re-plays the silent
+        // buffer and re-registers as media playback.
+        _ctx.addEventListener('statechange', () => {
+          if (_ctx && _ctx.state !== 'running') {
+            _unlocked = false;
+          }
+        });
+      }
     } catch { return null; }
   }
   return _ctx;
@@ -26,7 +49,7 @@ function ctx(): AudioContext | null {
 export function resumeAudio(): Promise<void> {
   const c = ctx();
   if (!c) return Promise.resolve();
-  if (c.state !== 'suspended') return Promise.resolve();
+  if (!needsResume(c)) return Promise.resolve();
 
   if (!_resumePromise) {
     _resumePromise = c.resume()
@@ -42,8 +65,12 @@ export function resumeAudio(): Promise<void> {
 // by starting a real (even silent) audio source from within a user-gesture
 // stack frame. Calling c.resume() alone is not enough on iOS — and on mobile
 // Chrome the autoplay policy similarly demands an explicit source.start() in
-// the gesture. We do both: resume() AND a 1-sample silent buffer the first
-// time we're invoked.
+// the gesture. We do both: resume() AND a 1-sample silent buffer.
+//
+// NOTE: _unlocked is reset to false whenever iOS interrupts the AudioContext
+// (via the statechange listener in ctx()). This means the silent buffer will
+// fire again on the next gesture after coming back from a phone call, screen
+// lock, or app switch — which is exactly what iOS requires to re-unlock.
 function unlockAudio(c: AudioContext): void {
   if (_unlocked) return;
   try {
@@ -59,7 +86,7 @@ function unlockAudio(c: AudioContext): void {
 }
 
 // ─── iOS touch unlock ─────────────────────────────────────────────────────────
-// Two separate problems require two separate fixes on iOS:
+// Three separate problems require three separate fixes on iOS:
 //
 // 1. GESTURE CHAIN: React's synthetic event system breaks the "direct user
 //    gesture" stack that iOS WebKit requires for AudioContext.resume(). Capture-
@@ -72,10 +99,11 @@ function unlockAudio(c: AudioContext): void {
 //    output from the silent switch. This is the web equivalent of
 //    AVAudioSession.setCategory(.playback) in a native Swift app.
 //
-//    IMPORTANT: The audio element must contain a valid, decodable audio file.
-//    A fake/invalid base64 blob will fail silently and the silent-switch bypass
-//    will never activate. We generate a real PCM WAV from scratch using the
-//    Web Audio API's own render pipeline — no external file or base64 needed.
+// 3. INTERRUPTION RECOVERY: iOS can interrupt the AudioContext at any time
+//    (screen lock, phone call, Siri, app switch). The previous implementation
+//    removed the touch listeners after the first unlock, so recovery never
+//    happened. The listeners now stay attached permanently and re-unlock on
+//    every touch if the context is not 'running'.
 
 function buildSilentWavUrl(): string {
   // Construct a minimal valid WAV: 44-byte RIFF header + 1 sample of silence.
@@ -110,25 +138,31 @@ let _silentWavUrl: string | null = null;
 function setupIOSTouchUnlock(): void {
   if (typeof document === 'undefined') return;
 
+  // IMPORTANT: This listener is PERMANENT — it does NOT remove itself.
+  // After an iOS interruption (screen lock, phone call, app switch), the
+  // AudioContext goes to 'interrupted' state. Without a persistent listener,
+  // there's nothing to re-unlock it when the user comes back.
   const unlock = () => {
-    // Fix #1: unlock AudioContext inside the real (capture-phase) gesture stack.
     const c = ctx();
-    if (c) {
-      c.resume().catch(() => {});
-      unlockAudio(c);
-    }
+    if (!c) return;
 
-    // Fix #2: play a verified-valid silent WAV so iOS reclassifies this page as
-    // "media playback" and stops muting it via the Ring/Silent switch.
+    // Skip if already running — no work to do and we avoid thrashing
+    if (c.state === 'running' && _unlocked) return;
+
+    // Fix #1: resume the AudioContext (handles both 'suspended' AND 'interrupted')
+    c.resume().catch(() => {});
+
+    // Fix #2: replay silent buffer to re-unlock after interruption
+    unlockAudio(c);
+
+    // Fix #3: replay silent WAV so iOS re-registers as media playback
+    // (the silent-switch bypass can be lost after an interruption)
     try {
       if (!_silentWavUrl) _silentWavUrl = buildSilentWavUrl();
       const el = new Audio(_silentWavUrl);
       el.volume = 0.001;
       el.play().catch(() => {});
     } catch { /* non-fatal */ }
-
-    document.removeEventListener('touchstart', unlock, true);
-    document.removeEventListener('touchend', unlock, true);
   };
 
   document.addEventListener('touchstart', unlock, true);
@@ -144,12 +178,13 @@ function playWhenReady(play: (c: AudioContext) => void): void {
   if (!c) return;
 
   // Resume synchronously (fire-and-forget) — must stay inside the user-gesture
-  // call stack on iOS Safari.
-  if (c.state === 'suspended') {
+  // call stack on iOS Safari. Handles 'suspended' AND 'interrupted' states.
+  if (needsResume(c)) {
     c.resume().catch(() => {});
   }
   // Silent-buffer unlock — required by iOS Safari and mobile Chrome autoplay
-  // policy. After this fires once, future audio plays freely.
+  // policy. Will re-fire after an iOS interruption because _unlocked gets
+  // reset by the statechange listener.
   unlockAudio(c);
   play(c);
 }
