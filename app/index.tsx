@@ -130,7 +130,7 @@ export default function HomeScreen() {
           <View style={styles.machineIntro}>
             <Text style={styles.machineTitle}>Where should we dine?</Text>
             <Text style={styles.machineHint}>Pick a category and let the reels decide.</Text>
-            <Text style={styles.versionTag}>v1.6.0</Text>
+            <Text style={styles.versionTag}>v1.7.0</Text>
           </View>
 
           <AudioDebugPanel />
@@ -262,7 +262,7 @@ function WinnerCard({ winner }: { winner: Restaurant }) {
 // Shows AudioContext state and provides a direct test beep button.
 // Remove this once audio is confirmed working on all devices.
 function AudioDebugPanel() {
-  const [info, setInfo] = useState({ state: '?', unlocked: false, ctxExists: false });
+  const [info, setInfo] = useState({ state: '?', unlocked: false, ctxExists: false, streamActive: false, streamElPaused: null as boolean | null });
   const [tapCount, setTapCount] = useState(0);
 
   const refresh = useCallback(() => {
@@ -289,6 +289,9 @@ function AudioDebugPanel() {
       <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12, marginBottom: 6 }}>🔊 Audio Debug (temp)</Text>
       <Text style={{ color: stateColor, fontSize: 11, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined }}>
         ctx: {info.ctxExists ? 'YES' : 'NO'} | state: {info.state} | unlocked: {info.unlocked ? '✅' : '❌'}
+      </Text>
+      <Text style={{ color: '#6af', fontSize: 11, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined }}>
+        stream: {info.streamActive ? '✅' : '❌'} | el: {info.streamElPaused === null ? 'none' : info.streamElPaused ? 'PAUSED' : 'playing'}
       </Text>
       <Text style={{ color: '#999', fontSize: 11, marginTop: 2 }}>
         test taps: {tapCount}

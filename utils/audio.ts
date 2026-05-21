@@ -4,22 +4,45 @@ let _ctx: AudioContext | null = null;
 let _resumePromise: Promise<void> | null = null;
 let _unlocked = false;
 
+// ─── MediaStream audio routing ──────────────────────────────────────────────
+// iOS Safari can report AudioContext as 'running' while its hardware output
+// (ctx.destination) is silently disconnected. This is a known WebKit quirk
+// that occurs after repeated use, interruptions, or tab switches.
+//
+// Fix: route ALL oscillator output through a MediaStreamDestination node,
+// pipe that stream into an <audio> element, and play through the HTML audio
+// path — which we've confirmed works reliably on the affected device.
+// Every connect() call in the sound functions targets audioOut() instead of
+// c.destination.
+let _streamDest: MediaStreamAudioDestinationNode | null = null;
+let _streamEl: HTMLAudioElement | null = null;
+
+function audioOut(c: AudioContext): AudioNode {
+  if (Platform.OS !== 'web') return c.destination;
+  if (!_streamDest) {
+    try {
+      _streamDest = c.createMediaStreamDestination();
+      _streamEl = new Audio();
+      _streamEl.srcObject = _streamDest.stream;
+      _streamEl.play().catch(() => {});
+    } catch {
+      // Fallback to direct destination if MediaStream not supported
+      return c.destination;
+    }
+  }
+  // Re-kick the audio element if iOS paused it
+  if (_streamEl && _streamEl.paused) {
+    _streamEl.play().catch(() => {});
+  }
+  return _streamDest;
+}
+
 // ─── Sunday detection ────────────────────────────────────────────────────────
-// Returns true when the user's device local time falls on a Sunday.
-// Used by the Chick-fil-A Sunday Easter egg in app/index.tsx.
 export function isSunday(): boolean {
   return new Date().getDay() === 0;
 }
 
 // ─── AudioContext state helper ──────────────────────────────────────────────
-// iOS Safari has THREE AudioContext states, not two:
-//   'suspended' — initial state, or paused by the browser
-//   'running'   — actively processing audio
-//   'interrupted' — iOS stole audio focus (screen lock, phone call, Siri,
-//                   app switch, notification). This state is iOS-specific
-//                   and MUST be handled or audio dies permanently after any
-//                   interruption.
-// Any state that is not 'running' needs a resume() call.
 function needsResume(c: AudioContext): boolean {
   return c.state !== 'running';
 }
@@ -32,12 +55,12 @@ function ctx(): AudioContext | null {
       const Ctor = window.AudioContext ?? (window as any).webkitAudioContext;
       if (Ctor) {
         _ctx = new Ctor();
-        // When iOS interrupts the AudioContext (screen lock, call, Siri, etc.),
-        // reset the unlock flag so the next user gesture re-plays the silent
-        // buffer and re-registers as media playback.
         _ctx.addEventListener('statechange', () => {
           if (_ctx && _ctx.state !== 'running') {
             _unlocked = false;
+            // Reset the stream output so it gets re-created fresh
+            _streamDest = null;
+            _streamEl = null;
           }
         });
       }
@@ -61,16 +84,6 @@ export function resumeAudio(): Promise<void> {
   return _resumePromise;
 }
 
-// iOS / mobile Safari + mobile Chrome require the AudioContext to be unlocked
-// by starting a real (even silent) audio source from within a user-gesture
-// stack frame. Calling c.resume() alone is not enough on iOS — and on mobile
-// Chrome the autoplay policy similarly demands an explicit source.start() in
-// the gesture. We do both: resume() AND a 1-sample silent buffer.
-//
-// NOTE: _unlocked is reset to false whenever iOS interrupts the AudioContext
-// (via the statechange listener in ctx()). This means the silent buffer will
-// fire again on the next gesture after coming back from a phone call, screen
-// lock, or app switch — which is exactly what iOS requires to re-unlock.
 function unlockAudio(c: AudioContext): void {
   if (_unlocked) return;
   try {
@@ -86,50 +99,24 @@ function unlockAudio(c: AudioContext): void {
 }
 
 // ─── iOS touch unlock ─────────────────────────────────────────────────────────
-// Three separate problems require three separate fixes on iOS:
-//
-// 1. GESTURE CHAIN: React's synthetic event system breaks the "direct user
-//    gesture" stack that iOS WebKit requires for AudioContext.resume(). Capture-
-//    phase native listeners fire before React and satisfy the requirement.
-//
-// 2. RING/SILENT SWITCH: iOS categorises Web Audio API oscillators as "ambient"
-//    audio, which the hardware silent switch (and Action Button on iPhone 15 Pro+)
-//    mutes. Playing a real decoded <audio> element in the same gesture registers
-//    the page as "media playback" with iOS — exempting ALL subsequent Web Audio
-//    output from the silent switch. This is the web equivalent of
-//    AVAudioSession.setCategory(.playback) in a native Swift app.
-//
-// 3. INTERRUPTION RECOVERY: iOS can interrupt the AudioContext at any time
-//    (screen lock, phone call, Siri, app switch). The previous implementation
-//    removed the touch listeners after the first unlock, so recovery never
-//    happened. The listeners now stay attached permanently and re-unlock on
-//    every touch if the context is not 'running'.
-
 function buildSilentWavUrl(): string {
-  // Construct a minimal valid WAV: 44-byte RIFF header + 1 sample of silence.
-  // iOS will fully decode this, which is the trigger iOS needs to reclassify
-  // the page's audio as "media playback" rather than "ambient".
   const numSamples = 1;
   const sampleRate = 8000;
-  const numChannels = 1;
-  const bitsPerSample = 16;
-  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
-  const blockAlign = numChannels * (bitsPerSample / 8);
-  const dataSize = numSamples * blockAlign;
+  const dataSize = numSamples * 2;
   const buf = new ArrayBuffer(44 + dataSize);
   const v = new DataView(buf);
   const s = (o: number, str: string) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
   s(0, 'RIFF'); v.setUint32(4, 36 + dataSize, true);
   s(8, 'WAVE'); s(12, 'fmt ');
-  v.setUint32(16, 16, true);          // subchunk1 size
-  v.setUint16(20, 1, true);           // PCM format
-  v.setUint16(22, numChannels, true);
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);
+  v.setUint16(22, 1, true);
   v.setUint32(24, sampleRate, true);
-  v.setUint32(28, byteRate, true);
-  v.setUint16(32, blockAlign, true);
-  v.setUint16(34, bitsPerSample, true);
+  v.setUint32(28, sampleRate * 2, true);
+  v.setUint16(32, 2, true);
+  v.setUint16(34, 16, true);
   s(36, 'data'); v.setUint32(40, dataSize, true);
-  v.setInt16(44, 0, true);            // one sample of silence
+  v.setInt16(44, 0, true);
   return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
 }
 
@@ -138,25 +125,24 @@ let _silentWavUrl: string | null = null;
 function setupIOSTouchUnlock(): void {
   if (typeof document === 'undefined') return;
 
-  // IMPORTANT: This listener is PERMANENT — it does NOT remove itself.
-  // After an iOS interruption (screen lock, phone call, app switch), the
-  // AudioContext goes to 'interrupted' state. Without a persistent listener,
-  // there's nothing to re-unlock it when the user comes back.
   const unlock = () => {
     const c = ctx();
     if (!c) return;
 
-    // Skip if already running — no work to do and we avoid thrashing
-    if (c.state === 'running' && _unlocked) return;
+    if (c.state === 'running' && _unlocked) {
+      // Still re-kick the stream element in case iOS paused it
+      if (_streamEl && _streamEl.paused) {
+        _streamEl.play().catch(() => {});
+      }
+      return;
+    }
 
-    // Fix #1: resume the AudioContext (handles both 'suspended' AND 'interrupted')
     c.resume().catch(() => {});
-
-    // Fix #2: replay silent buffer to re-unlock after interruption
     unlockAudio(c);
 
-    // Fix #3: replay silent WAV so iOS re-registers as media playback
-    // (the silent-switch bypass can be lost after an interruption)
+    // Ensure the stream output is created/alive inside the gesture
+    audioOut(c);
+
     try {
       if (!_silentWavUrl) _silentWavUrl = buildSilentWavUrl();
       const el = new Audio(_silentWavUrl);
@@ -167,6 +153,8 @@ function setupIOSTouchUnlock(): void {
 
   document.addEventListener('touchstart', unlock, true);
   document.addEventListener('touchend', unlock, true);
+  // Also handle mouse clicks for desktop
+  document.addEventListener('mousedown', unlock, true);
 }
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -177,14 +165,9 @@ function playWhenReady(play: (c: AudioContext) => void): void {
   const c = ctx();
   if (!c) return;
 
-  // Resume synchronously (fire-and-forget) — must stay inside the user-gesture
-  // call stack on iOS Safari. Handles 'suspended' AND 'interrupted' states.
   if (needsResume(c)) {
     c.resume().catch(() => {});
   }
-  // Silent-buffer unlock — required by iOS Safari and mobile Chrome autoplay
-  // policy. Will re-fire after an iOS interruption because _unlocked gets
-  // reset by the statechange listener.
   unlockAudio(c);
   play(c);
 }
@@ -192,23 +175,25 @@ function playWhenReady(play: (c: AudioContext) => void): void {
 function masterGain(c: AudioContext, volume: number): GainNode {
   const g = c.createGain();
   g.gain.value = volume;
-  g.connect(c.destination);
+  g.connect(audioOut(c));
   return g;
 }
 
 // ─── Debug helper (temporary) ───────────────────────────────────────────────
-// Exposes internal audio state for the debug panel in index.tsx.
-export function getAudioDebugInfo(): { state: string; unlocked: boolean; ctxExists: boolean } {
+export function getAudioDebugInfo(): {
+  state: string; unlocked: boolean; ctxExists: boolean;
+  streamActive: boolean; streamElPaused: boolean | null;
+} {
   const c = _ctx;
   return {
     state: c ? c.state : 'no-context',
     unlocked: _unlocked,
     ctxExists: !!c,
+    streamActive: !!_streamDest,
+    streamElPaused: _streamEl ? _streamEl.paused : null,
   };
 }
 
-// Direct test beep — bypasses all game logic, plays a 440Hz tone for 0.2s.
-// If this produces sound, the audio pipeline is working.
 export function playTestBeep(): void {
   playWhenReady((c) => {
     const now = c.currentTime;
@@ -219,27 +204,17 @@ export function playTestBeep(): void {
     g.gain.setValueAtTime(0.5, now);
     g.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
     osc.connect(g);
-    g.connect(c.destination);
+    g.connect(audioOut(c));
     osc.start(now);
     osc.stop(now + 0.25);
   });
 }
 
-// ─── HTML Audio test (temporary) ──────────────────────────────────────────
-// Plays a 440Hz tone via an <audio> element instead of the Web Audio API.
-// This uses a completely separate audio path inside iOS. If THIS plays sound
-// but playTestBeep() doesn't, the issue is Web Audio routing. If NEITHER
-// plays, the issue is media volume or iOS audio routing (Bluetooth, etc).
 export function playHtmlAudioTest(): void {
-  // Build a 0.5s WAV with an audible 440Hz sine wave
   const sampleRate = 22050;
   const duration = 0.5;
   const numSamples = Math.round(sampleRate * duration);
-  const numChannels = 1;
-  const bitsPerSample = 16;
-  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
-  const blockAlign = numChannels * (bitsPerSample / 8);
-  const dataSize = numSamples * blockAlign;
+  const dataSize = numSamples * 2;
   const buf = new ArrayBuffer(44 + dataSize);
   const v = new DataView(buf);
   const w = (o: number, str: string) => {
@@ -249,20 +224,17 @@ export function playHtmlAudioTest(): void {
   w(8, 'WAVE'); w(12, 'fmt ');
   v.setUint32(16, 16, true);
   v.setUint16(20, 1, true);
-  v.setUint16(22, numChannels, true);
+  v.setUint16(22, 1, true);
   v.setUint32(24, sampleRate, true);
-  v.setUint32(28, byteRate, true);
-  v.setUint16(32, blockAlign, true);
-  v.setUint16(34, bitsPerSample, true);
+  v.setUint32(28, sampleRate * 2, true);
+  v.setUint16(32, 2, true);
+  v.setUint16(34, 16, true);
   w(36, 'data'); v.setUint32(40, dataSize, true);
-
-  // Write 440Hz sine wave samples
   for (let i = 0; i < numSamples; i++) {
     const t = i / sampleRate;
-    const sample = Math.sin(2 * Math.PI * 440 * t) * 0.5; // 50% volume
+    const sample = Math.sin(2 * Math.PI * 440 * t) * 0.5;
     v.setInt16(44 + i * 2, Math.round(sample * 32767), true);
   }
-
   const blob = new Blob([buf], { type: 'audio/wav' });
   const url = URL.createObjectURL(blob);
   const el = new Audio(url);
@@ -272,7 +244,11 @@ export function playHtmlAudioTest(): void {
     .catch(() => { URL.revokeObjectURL(url); });
 }
 
-// Immediate gesture sound used to unlock browser audio on lever/button press.
+// ─── Sound effects ──────────────────────────────────────────────────────────
+// All sounds connect to audioOut(c) instead of c.destination. On web, this
+// routes through a MediaStreamDestination → <audio> element pipeline, which
+// bypasses the iOS Safari bug where ctx.destination silently disconnects.
+
 export function playLeverPull(): void {
   playWhenReady((c) => {
     const now = c.currentTime;
@@ -305,13 +281,9 @@ export function playLeverPull(): void {
   });
 }
 
-// ─── Mechanical ratchet tick ─────────────────────────────────────────────────
-// Crisp, short click — frequency of calls is controlled by the reel listener.
 export function playTick(): void {
   playWhenReady((c) => {
     const now = c.currentTime;
-
-    // Short square-wave burst at ~1kHz — sounds like a mechanical detent click
     const osc = c.createOscillator();
     const gain = c.createGain();
     osc.type = 'square';
@@ -319,19 +291,17 @@ export function playTick(): void {
     gain.gain.setValueAtTime(0.36, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.014);
     osc.connect(gain);
-    gain.connect(c.destination);
+    gain.connect(audioOut(c));
     osc.start(now);
     osc.stop(now + 0.015);
   });
 }
 
-// ─── Reel lock — mechanical thud when a drum stops ──────────────────────────
-// Heavy low-frequency "clunk" + a brief metallic transient on top.
 export function playReelStop(): void {
   playWhenReady((c) => {
     const now = c.currentTime;
+    const dest = audioOut(c);
 
-    // Low thud: pitch-dropping oscillator
     const thud = c.createOscillator();
     const thudGain = c.createGain();
     thud.type = 'triangle';
@@ -340,11 +310,10 @@ export function playReelStop(): void {
     thudGain.gain.setValueAtTime(1.0, now);
     thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
     thud.connect(thudGain);
-    thudGain.connect(c.destination);
+    thudGain.connect(dest);
     thud.start(now);
     thud.stop(now + 0.15);
 
-    // Metallic click on top
     const click = c.createOscillator();
     const clickGain = c.createGain();
     click.type = 'square';
@@ -352,19 +321,17 @@ export function playReelStop(): void {
     clickGain.gain.setValueAtTime(0.42, now);
     clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.018);
     click.connect(clickGain);
-    clickGain.connect(c.destination);
+    clickGain.connect(dest);
     click.start(now);
     click.stop(now + 0.02);
   });
 }
 
-// ─── Win ding — single bright bell, fires the instant the last reel locks ──
-// Distinct from playReelStop (mechanical clunk) and playCelebration (full chord).
 export function playWinDing(): void {
   playWhenReady((c) => {
     const now = c.currentTime;
+    const dest = audioOut(c);
 
-    // Two-note "ding-ding" — perfect fifth, sine, quick decay
     [880, 1318.5].forEach((freq, i) => {
       const t   = now + i * 0.08;
       const osc = c.createOscillator();
@@ -375,19 +342,17 @@ export function playWinDing(): void {
       g.gain.linearRampToValueAtTime(0.46, t + 0.005);
       g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
       osc.connect(g);
-      g.connect(c.destination);
+      g.connect(dest);
       osc.start(t);
       osc.stop(t + 0.5);
     });
   });
 }
 
-// ─── Winner celebration ──────────────────────────────────────────────────────
-// Rapid ascending coin-jingle feel, then a final triumphant chord.
 export function playCelebration(): void {
   playWhenReady((c) => {
+    const dest = audioOut(c);
 
-    // Rapid coin pings (short, bright)
     const pingFreqs = [880, 1100, 1320, 1100, 1760];
     pingFreqs.forEach((freq, i) => {
       const t = c.currentTime + i * 0.07;
@@ -399,12 +364,11 @@ export function playCelebration(): void {
       g.gain.linearRampToValueAtTime(0.5, t + 0.01);
       g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
       osc.connect(g);
-      g.connect(c.destination);
+      g.connect(dest);
       osc.start(t);
       osc.stop(t + 0.2);
     });
 
-    // Final chord: C5, E5, G5, C6 together
     const chordFreqs = [523.25, 659.25, 783.99, 1046.5];
     const chordStart = c.currentTime + pingFreqs.length * 0.07 + 0.04;
     chordFreqs.forEach((freq) => {
@@ -416,26 +380,21 @@ export function playCelebration(): void {
       g.gain.linearRampToValueAtTime(0.34, chordStart + 0.02);
       g.gain.exponentialRampToValueAtTime(0.001, chordStart + 0.55);
       osc.connect(g);
-      g.connect(c.destination);
+      g.connect(dest);
       osc.start(chordStart);
       osc.stop(chordStart + 0.6);
     });
   });
 }
 
-// ─── Sad trombone — "wah-wah-waaah" ──────────────────────────────────────────
-// Classic "you lose" descending notes. Used for the Chick-fil-A-on-Sunday
-// Easter egg: even though they "won", the joke is they can't go.
-// Three descending sawtooth notes with a slight pitch bend on the last one,
-// evoking a muted trombone glissando down.
 export function playSadTrombone(): void {
   playWhenReady((c) => {
     const now = c.currentTime;
-    // Three descending notes — A3, F3, D3-ish — sawtooth for buzzy trombone tone
+    const dest = audioOut(c);
     const notes = [
-      { freq: 220.0, t: 0.00,  dur: 0.22 }, // wah
-      { freq: 174.6, t: 0.22,  dur: 0.22 }, // wah
-      { freq: 146.8, t: 0.46,  dur: 0.55 }, // waaah (longer, with pitch bend)
+      { freq: 220.0, t: 0.00,  dur: 0.22 },
+      { freq: 174.6, t: 0.22,  dur: 0.22 },
+      { freq: 146.8, t: 0.46,  dur: 0.55 },
     ];
 
     notes.forEach((n, i) => {
@@ -445,18 +404,16 @@ export function playSadTrombone(): void {
       osc.type    = 'sawtooth';
       osc.frequency.setValueAtTime(n.freq, start);
 
-      // Final note bends down a half-step for that classic trombone slide
       if (i === notes.length - 1) {
         osc.frequency.exponentialRampToValueAtTime(n.freq * 0.85, start + n.dur);
       }
 
-      // Quick attack, slow decay — gives it the "vocal" wah-wah character
       gain.gain.setValueAtTime(0, start);
       gain.gain.linearRampToValueAtTime(0.32, start + 0.03);
       gain.gain.exponentialRampToValueAtTime(0.001, start + n.dur);
 
       osc.connect(gain);
-      gain.connect(c.destination);
+      gain.connect(dest);
       osc.start(start);
       osc.stop(start + n.dur + 0.05);
     });
