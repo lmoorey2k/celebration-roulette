@@ -1072,3 +1072,28 @@ The two-sided odds slider worked, but the admin table could read a little busy. 
 ### Verification
 - `npx tsc --noEmit` in `celebration-backend`
 - `npm run build` in `celebration-backend`
+
+---
+
+## 25. Per-Reel Slot Machine Audio Pass — 2026-05-21
+
+### Starting point / rollback
+Before this sound-design pass, the app repo was clean at commit `f767c0e` (`Update CODEX for odds slider polish`). If the new audio direction is disliked, compare against or revert the commit that follows this note.
+
+### Problem
+The rolling sound felt flat because only the last-stopping reel produced tick sounds. The tick sound also stayed essentially the same whether three reels, two reels, or one reel remained in motion. Each reel did play a stop sound, but the stop sounds did not build much physical weight as the machine locked down.
+
+### Solution
+- `SlotMachine.tsx` now attaches tick listeners to all three reel animations instead of only the last-stopping reel.
+- When a reel stops, its tick listener is cleared, so the rolling texture naturally thins from three reels to two reels to one reel.
+- `utils/audio.ts` now lets `playTick(reel, activeReels)` vary tick pitch/timbre slightly per reel and reduce tick volume so combined multi-reel ticking is fuller without getting harsh.
+- `playReelStop(reel, stopRank, isFinal)` now varies stop pitch/weight by stop order, with a heavier final clunk and a small latch click.
+
+### Key invariant for future agents
+- Keep the existing iOS/WebKit audio routing intact: sound functions must connect through `audioOut(c)`, not directly to `c.destination`, except for the documented unlock path.
+- This pass intentionally did **not** add a continuous whirr bed. If more realism is needed later, add it as a separate, reversible pass after testing the per-reel tick/clunk feel.
+- `RouletteWheel.tsx` is legacy and still calls `playTick()` with no args; the new audio helper defaults preserve compatibility.
+
+### Files changed
+- `components/SlotMachine.tsx` — per-reel tick listeners and stopped-reel tracking
+- `utils/audio.ts` — per-reel tick variation and stepped stop/clunk variation

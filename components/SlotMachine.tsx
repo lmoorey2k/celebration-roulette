@@ -214,6 +214,7 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
 
   const tickIds       = useRef<string[]>(['', '', '']);
   const prevB         = useRef([0, 0, 0]);
+  const stoppedReels  = useRef(0);
   const lastStopOrder = useRef<readonly number[] | null>(null);
   // Tracks whether a spin animation is currently in flight. Used to prevent
   // the pool-change reset effect from resetting the reels mid-spin (which
@@ -291,10 +292,15 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
     stopGlow(); setShowGlow(false); setReelItems(data.map((d) => d.items));
     clearAllTicks();
     prevB.current = [0, 0, 0];
-    const tickReel = stopOrder[NUM_REELS - 1];
-    tickIds.current[tickReel] = anims[tickReel].addListener(({ value }) => {
-      const boundary = Math.floor(Math.abs(value) / itemH);
-      if (boundary !== prevB.current[tickReel]) { prevB.current[tickReel] = boundary; playTick(); }
+    stoppedReels.current = 0;
+    anims.forEach((anim, reel) => {
+      tickIds.current[reel] = anim.addListener(({ value }) => {
+        const boundary = Math.floor(Math.abs(value) / itemH);
+        if (boundary !== prevB.current[reel]) {
+          prevB.current[reel] = boundary;
+          playTick(reel, NUM_REELS - stoppedReels.current);
+        }
+      });
     });
 
     isSpinActiveRef.current = true;
@@ -318,7 +324,9 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
         if (!ok) return;
         anims[i].setValue(reelData.targetY); // snap to exact pixel
         clearReelTick(i);
-        playReelStop();
+        const stopRank = profile(i);
+        stoppedReels.current += 1;
+        playReelStop(i, stopRank, stoppedReels.current === NUM_REELS);
         finished += 1;
         if (finished === NUM_REELS) {
           isSpinActiveRef.current = false;

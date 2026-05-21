@@ -234,49 +234,70 @@ export function playLeverPull(): void {
   });
 }
 
-export function playTick(): void {
+export function playTick(reel = 0, activeReels = 3): void {
   playWhenReady((c) => {
     const now = c.currentTime;
     const osc = c.createOscillator();
     const gain = c.createGain();
-    osc.type = 'square';
-    osc.frequency.value = 1050;
-    gain.gain.setValueAtTime(0.36, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.014);
+    const freqs = [930, 1080, 1230];
+    const reelFreq = freqs[reel % freqs.length] ?? 1050;
+    const activeScale = Math.max(0.66, Math.min(1, activeReels / 3));
+
+    osc.type = reel % 2 === 0 ? 'square' : 'triangle';
+    osc.frequency.setValueAtTime(reelFreq, now);
+    gain.gain.setValueAtTime(0.14 * activeScale, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.012);
     osc.connect(gain);
     gain.connect(audioOut(c));
     osc.start(now);
-    osc.stop(now + 0.015);
+    osc.stop(now + 0.014);
   });
 }
 
-export function playReelStop(): void {
+export function playReelStop(reel = 0, stopRank = 0, isFinal = false): void {
   playWhenReady((c) => {
     const now = c.currentTime;
     const dest = audioOut(c);
+    const lowFreqs = [210, 175, 145];
+    const highFreqs = [2600, 3100, 3600];
+    const weight = isFinal ? 1.2 : 0.85 + stopRank * 0.15;
 
     const thud = c.createOscillator();
     const thudGain = c.createGain();
     thud.type = 'triangle';
-    thud.frequency.setValueAtTime(220, now);
-    thud.frequency.exponentialRampToValueAtTime(55, now + 0.12);
-    thudGain.gain.setValueAtTime(1.0, now);
-    thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+    thud.frequency.setValueAtTime(lowFreqs[stopRank] ?? 160, now);
+    thud.frequency.exponentialRampToValueAtTime(isFinal ? 42 : 55, now + 0.14);
+    thudGain.gain.setValueAtTime(0.7 * weight, now);
+    thudGain.gain.exponentialRampToValueAtTime(0.001, now + (isFinal ? 0.2 : 0.15));
     thud.connect(thudGain);
     thudGain.connect(dest);
     thud.start(now);
-    thud.stop(now + 0.15);
+    thud.stop(now + (isFinal ? 0.22 : 0.16));
 
     const click = c.createOscillator();
     const clickGain = c.createGain();
     click.type = 'square';
-    click.frequency.value = 3200;
-    clickGain.gain.setValueAtTime(0.42, now);
+    click.frequency.value = highFreqs[reel % highFreqs.length] ?? 3200;
+    clickGain.gain.setValueAtTime(0.26 * weight, now);
     clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.018);
     click.connect(clickGain);
     clickGain.connect(dest);
     click.start(now);
     click.stop(now + 0.02);
+
+    if (isFinal) {
+      const latch = c.createOscillator();
+      const latchGain = c.createGain();
+      latch.type = 'square';
+      latch.frequency.value = 1800;
+      latchGain.gain.setValueAtTime(0, now + 0.045);
+      latchGain.gain.linearRampToValueAtTime(0.18, now + 0.05);
+      latchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.095);
+      latch.connect(latchGain);
+      latchGain.connect(dest);
+      latch.start(now + 0.045);
+      latch.stop(now + 0.1);
+    }
   });
 }
 
