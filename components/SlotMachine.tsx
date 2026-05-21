@@ -36,9 +36,9 @@ const DURATIONS = [3200, 4600, 6000];
 const ROTATIONS = [12, 15, 18];
 const SPRING_F = 16;
 const SPRING_T = 240;
-const SPIN_PREROLL_MS = 1000;
+const SPIN_PREROLL_MS = 2000;
 const SYNTH_STOP_LEAD_MS = 120;
-const AUDIO_TEST_LABEL = `v1.3 | ${SPIN_PREROLL_MS}ms`;
+const AUDIO_TEST_LABEL = `v1.4 | ${SPIN_PREROLL_MS}ms`;
 // Fire tick sounds slightly before the visual row boundary. Browser/iOS audio
 // output has a little latency, so exact-boundary scheduling feels behind.
 const TICK_LEAD_RATIO = 0.38;

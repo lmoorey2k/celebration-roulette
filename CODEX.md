@@ -1403,3 +1403,23 @@ This pass follows `b22f940` (`Add button press sound before reel preroll`). iPho
 ### Key invariant for future agents
 - Do not tie the main cabinet button label directly to `spinState === 'result'`; use the completed-spin history so it does not flicker back to `SPIN`.
 - If the button sound still feels delayed on iPhone, keep investigating touch/audio unlock timing before changing the 1000ms reel preroll.
+
+---
+
+## 39. Audio V1.4 Two-Second Reel Preroll — 2026-05-21
+
+### Starting point / rollback
+This pass follows `8211777` (`Make spin press immediate and keep spin again label`). The next test doubles the pause between the immediate button press sound and the start of reel motion/rolling ticks.
+
+### Version marker
+- Current audio checkpoint: `audio-v1.4-button-immediate-2000ms`
+- Visible badge: `v1.4 | 2000ms`
+
+### Changes
+- Doubled `SPIN_PREROLL_MS` from 1000ms to 2000ms.
+- Kept the button press sound on `onPressIn`, so it still fires immediately on touch.
+- Left the rolling/tick and stop sounds unchanged; because reel animation is delayed, rolling ticks also begin after the 2000ms preroll.
+- Stop sound scheduling still uses `SPIN_PREROLL_MS + duration - SYNTH_STOP_LEAD_MS`, so stop clunks remain aligned after the longer delay.
+
+### Key invariant for future agents
+- If the pause feels too long, tune `SPIN_PREROLL_MS`; do not compensate by moving tick or stop scheduling separately.

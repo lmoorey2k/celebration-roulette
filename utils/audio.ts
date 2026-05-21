@@ -4,7 +4,7 @@ let _ctx: AudioContext | null = null;
 let _resumePromise: Promise<void> | null = null;
 let _unlocked = false;
 
-export const SLOT_AUDIO_VERSION = 'audio-v1.3-button-immediate-1000ms';
+export const SLOT_AUDIO_VERSION = 'audio-v1.4-button-immediate-2000ms';
 
 // ─── MediaStream audio routing ──────────────────────────────────────────────
 // iOS Safari can report AudioContext as 'running' while its hardware output
