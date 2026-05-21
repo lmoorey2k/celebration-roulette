@@ -16,25 +16,48 @@ let _unlocked = false;
 // c.destination.
 let _streamDest: MediaStreamAudioDestinationNode | null = null;
 let _streamEl: HTMLAudioElement | null = null;
+let _streamStopTimer: ReturnType<typeof setTimeout> | null = null;
 
-function audioOut(c: AudioContext): AudioNode {
-  if (Platform.OS !== 'web') return c.destination;
+// How long after the last sound before we pause the stream element.
+// Must be longer than the longest sound effect (~1s for celebration/sadTrombone).
+const STREAM_IDLE_MS = 2000;
+
+function ensureStream(c: AudioContext): MediaStreamAudioDestinationNode | null {
   if (!_streamDest) {
     try {
       _streamDest = c.createMediaStreamDestination();
       _streamEl = new Audio();
       _streamEl.srcObject = _streamDest.stream;
-      _streamEl.play().catch(() => {});
     } catch {
-      // Fallback to direct destination if MediaStream not supported
-      return c.destination;
+      return null;
     }
   }
-  // Re-kick the audio element if iOS paused it
-  if (_streamEl && _streamEl.paused) {
+  return _streamDest;
+}
+
+// Kick the stream element to play, and schedule an auto-pause so we don't
+// leave an open stream humming through the speaker when nothing is playing.
+function kickStream(): void {
+  if (!_streamEl) return;
+  if (_streamEl.paused) {
     _streamEl.play().catch(() => {});
   }
-  return _streamDest;
+  // Reset the auto-pause timer every time a sound fires
+  if (_streamStopTimer) clearTimeout(_streamStopTimer);
+  _streamStopTimer = setTimeout(() => {
+    if (_streamEl && !_streamEl.paused) {
+      _streamEl.pause();
+    }
+    _streamStopTimer = null;
+  }, STREAM_IDLE_MS);
+}
+
+function audioOut(c: AudioContext): AudioNode {
+  if (Platform.OS !== 'web') return c.destination;
+  const dest = ensureStream(c);
+  if (!dest) return c.destination;
+  kickStream();
+  return dest;
 }
 
 // ─── Sunday detection ────────────────────────────────────────────────────────
@@ -129,19 +152,14 @@ function setupIOSTouchUnlock(): void {
     const c = ctx();
     if (!c) return;
 
-    if (c.state === 'running' && _unlocked) {
-      // Still re-kick the stream element in case iOS paused it
-      if (_streamEl && _streamEl.paused) {
-        _streamEl.play().catch(() => {});
-      }
-      return;
-    }
+    if (c.state === 'running' && _unlocked) return;
 
     c.resume().catch(() => {});
     unlockAudio(c);
 
-    // Ensure the stream output is created/alive inside the gesture
-    audioOut(c);
+    // Ensure the stream destination exists (but don't kick playback —
+    // kickStream() will be called by audioOut() when an actual sound plays)
+    ensureStream(c);
 
     try {
       if (!_silentWavUrl) _silentWavUrl = buildSilentWavUrl();
