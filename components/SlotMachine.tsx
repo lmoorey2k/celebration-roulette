@@ -346,8 +346,8 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
         stoppedReels.current += 1;
         const remainingReels = NUM_REELS - stoppedReels.current;
         setReelSampleActiveReels(remainingReels);
-        if (remainingReels === 0) stopReelSampleSpin();
         const playedSampleStop = usingSampleSpin && playSampleReelStop(stopRank, stoppedReels.current === NUM_REELS);
+        if (remainingReels === 0) stopReelSampleSpin();
         if (!playedSampleStop) playReelStop(i, stopRank, stoppedReels.current === NUM_REELS);
         finished += 1;
         if (finished === NUM_REELS) {

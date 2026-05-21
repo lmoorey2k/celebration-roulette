@@ -70,7 +70,7 @@ function audioOut(c: AudioContext): AudioNode {
 const SAMPLE_REEL_START = '/audio/slot-reel-start-approved.wav';
 const SAMPLE_REEL_BED = '/audio/slot-reel-spin-bed-approved.wav';
 const SAMPLE_REEL_STOP = '/audio/slot-reel-stop-approved.wav';
-const SAMPLE_BED_VOLUME_BY_ACTIVE_REELS: Record<number, number> = { 1: 0.12, 2: 0.2, 3: 0.28 };
+const SAMPLE_BED_VOLUME_BY_ACTIVE_REELS: Record<number, number> = { 1: 0.06, 2: 0.14, 3: 0.34 };
 
 function canUseHtmlAudio(): boolean {
   return Platform.OS === 'web' && typeof Audio !== 'undefined';
@@ -90,7 +90,7 @@ function playHtmlSample(src: string, volume: number, playbackRate = 1): boolean 
   }
 }
 
-function fadeSampleBed(toVolume: number, duration = 180, stopAfter = false): void {
+function fadeSampleBed(toVolume: number, duration = 90, stopAfter = false): void {
   if (!_sampleSpinBed) return;
   if (_sampleBedFadeTimer) clearInterval(_sampleBedFadeTimer);
 
@@ -105,12 +105,12 @@ function fadeSampleBed(toVolume: number, duration = 180, stopAfter = false): voi
       _sampleBedFadeTimer = null;
       if (stopAfter) el.pause();
     }
-  }, 30);
+  }, 20);
 }
 
 function setSampleBedActiveReels(activeReels: number): void {
   const active = Math.max(0, Math.min(3, activeReels));
-  fadeSampleBed(SAMPLE_BED_VOLUME_BY_ACTIVE_REELS[active] ?? 0.28, 160);
+  fadeSampleBed(SAMPLE_BED_VOLUME_BY_ACTIVE_REELS[active] ?? 0.34, 70);
 }
 
 export function startReelSampleSpin(): boolean {
@@ -123,7 +123,9 @@ export function startReelSampleSpin(): boolean {
     el.loop = false;
     el.preload = 'auto';
     el.volume = SAMPLE_BED_VOLUME_BY_ACTIVE_REELS[3];
-    el.currentTime = 0;
+    // Skip the leading fade-in of the derived bed; the separate start sample
+    // carries the spin engage sound and this makes the moving-reel bed feel on-time.
+    el.currentTime = 0.12;
     _sampleBedActive = true;
     el.onended = () => { _sampleBedActive = false; };
     el.play().catch(() => { _sampleBedActive = false; });
@@ -142,7 +144,7 @@ export function setReelSampleActiveReels(activeReels: number): void {
 export function stopReelSampleSpin(): void {
   if (!_sampleBedActive) return;
   _sampleBedActive = false;
-  fadeSampleBed(0, 140, true);
+  fadeSampleBed(0, 70, true);
 }
 
 export function playSampleReelStop(stopRank = 0, isFinal = false): boolean {

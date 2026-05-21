@@ -1232,3 +1232,24 @@ Generated under `public/audio/`:
 - Keep approved audio assets under `public/audio/` so Expo web can serve them directly.
 - If the sample bed feels misaligned, tune the derived asset trim/crossfade or sample-bed volume/fade constants before changing reel animation timing.
 - Do not remove the synthetic fallback unless native/mobile sample playback is fully implemented and tested.
+
+---
+
+## 31. Approved Reel Sample Timing/Level Tuning — 2026-05-21
+
+### Starting point / rollback
+This pass follows `4335750` (`Use approved reel audio samples`). The approved samples sounded much more real, but the sample bed started late, stop sounds felt late, and the spin bed did not drop enough in volume as reels stopped.
+
+### Changes
+- `utils/audio.ts`
+  - Increased the 3-reel bed level and reduced 2-reel/1-reel levels for a more obvious 3→2→1 drop.
+  - Shortened sample-bed fade durations so level changes happen closer to the visual reel stops.
+  - Starts the derived spin bed at `0.12s` to skip the tiny leading fade-in and align the bed sooner with reel motion.
+  - Final bed fade-out is faster so the stop sample is not masked.
+- `SlotMachine.tsx`
+  - Plays the reel-stop sample before stopping/fading the final bed, keeping the stop transient from feeling swallowed by the bed shutdown.
+
+### Key invariant for future agents
+- If the sample still feels late, first tune the derived asset start trim or the `el.currentTime` offset in `startReelSampleSpin()`.
+- If the step-down is still too subtle, tune `SAMPLE_BED_VOLUME_BY_ACTIVE_REELS`.
+- Keep the approved source asset documentation in section 30.
