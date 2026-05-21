@@ -1097,3 +1097,29 @@ The rolling sound felt flat because only the last-stopping reel produced tick so
 ### Files changed
 - `components/SlotMachine.tsx` — per-reel tick listeners and stopped-reel tracking
 - `utils/audio.ts` — per-reel tick variation and stepped stop/clunk variation
+
+---
+
+## 26. Audio Timing + Mobile Step-Down Tuning — 2026-05-21
+
+### Starting point / rollback
+This tuning pass follows `ef0fdd7` (`Improve per-reel slot machine audio`). If this pass feels worse, compare against or revert the commit that follows this note while keeping `ef0fdd7` as the first-pass baseline.
+
+### Feedback addressed
+- Tick sounds felt slightly late on both desktop and iPhone.
+- Desktop had a noticeable rolling-sound step-down as reels stopped, but iPhone did not make that change obvious enough.
+- The tick tone itself was not yet a favorite; it read a bit too sharp/electronic.
+
+### Changes
+- Added `TICK_LEAD_RATIO` in `SlotMachine.tsx` so tick sounds fire slightly before the visual row boundary. This compensates for browser/iOS audio output latency and should make ticks feel closer to the reel movement.
+- Lowered tick frequencies and changed the tick oscillator to `triangle` for a softer, less piercing click.
+- Replaced the old tick scaling with explicit active-reel volume levels:
+  - 3 active reels: fuller tick level
+  - 2 active reels: lower tick level
+  - 1 active reel: clearly lower tick level
+- Softened the high clack portion of reel-stop sounds by lowering high frequencies and gain, while keeping the final stop heavier than earlier stops.
+
+### Key invariant for future agents
+- If tick timing still feels late, tune `TICK_LEAD_RATIO` before changing animation timing.
+- If iPhone still does not reveal the step-down, tune the `levelByActiveReels` values in `playTick()`.
+- Keep this as a separate tuning commit so the first per-reel audio pass and this timing/tonal adjustment can be compared independently.

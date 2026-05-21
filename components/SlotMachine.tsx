@@ -36,6 +36,9 @@ const DURATIONS = [3200, 4600, 6000];
 const ROTATIONS = [12, 15, 18];
 const SPRING_F = 16;
 const SPRING_T = 240;
+// Fire tick sounds slightly before the visual row boundary. Browser/iOS audio
+// output has a little latency, so exact-boundary scheduling feels behind.
+const TICK_LEAD_RATIO = 0.38;
 const STOP_ORDERS: readonly (readonly number[])[] = [
   [0, 1, 2], [0, 2, 1], [1, 0, 2],
   [1, 2, 0], [2, 0, 1], [2, 1, 0],
@@ -293,9 +296,10 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
     clearAllTicks();
     prevB.current = [0, 0, 0];
     stoppedReels.current = 0;
+    const tickLeadPx = itemH * TICK_LEAD_RATIO;
     anims.forEach((anim, reel) => {
       tickIds.current[reel] = anim.addListener(({ value }) => {
-        const boundary = Math.floor(Math.abs(value) / itemH);
+        const boundary = Math.floor((Math.abs(value) + tickLeadPx) / itemH);
         if (boundary !== prevB.current[reel]) {
           prevB.current[reel] = boundary;
           playTick(reel, NUM_REELS - stoppedReels.current);

@@ -239,18 +239,19 @@ export function playTick(reel = 0, activeReels = 3): void {
     const now = c.currentTime;
     const osc = c.createOscillator();
     const gain = c.createGain();
-    const freqs = [930, 1080, 1230];
+    const freqs = [760, 880, 1010];
     const reelFreq = freqs[reel % freqs.length] ?? 1050;
-    const activeScale = Math.max(0.66, Math.min(1, activeReels / 3));
+    const activeCount = Math.max(1, Math.min(3, Math.round(activeReels)));
+    const levelByActiveReels: Record<number, number> = { 1: 0.04, 2: 0.075, 3: 0.12 };
 
-    osc.type = reel % 2 === 0 ? 'square' : 'triangle';
+    osc.type = 'triangle';
     osc.frequency.setValueAtTime(reelFreq, now);
-    gain.gain.setValueAtTime(0.14 * activeScale, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.012);
+    gain.gain.setValueAtTime(levelByActiveReels[activeCount] ?? 0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.01);
     osc.connect(gain);
     gain.connect(audioOut(c));
     osc.start(now);
-    osc.stop(now + 0.014);
+    osc.stop(now + 0.012);
   });
 }
 
@@ -259,15 +260,15 @@ export function playReelStop(reel = 0, stopRank = 0, isFinal = false): void {
     const now = c.currentTime;
     const dest = audioOut(c);
     const lowFreqs = [210, 175, 145];
-    const highFreqs = [2600, 3100, 3600];
-    const weight = isFinal ? 1.2 : 0.85 + stopRank * 0.15;
+    const highFreqs = [1800, 2200, 2600];
+    const weight = isFinal ? 1.12 : 0.78 + stopRank * 0.14;
 
     const thud = c.createOscillator();
     const thudGain = c.createGain();
     thud.type = 'triangle';
     thud.frequency.setValueAtTime(lowFreqs[stopRank] ?? 160, now);
     thud.frequency.exponentialRampToValueAtTime(isFinal ? 42 : 55, now + 0.14);
-    thudGain.gain.setValueAtTime(0.7 * weight, now);
+    thudGain.gain.setValueAtTime(0.62 * weight, now);
     thudGain.gain.exponentialRampToValueAtTime(0.001, now + (isFinal ? 0.2 : 0.15));
     thud.connect(thudGain);
     thudGain.connect(dest);
@@ -278,7 +279,7 @@ export function playReelStop(reel = 0, stopRank = 0, isFinal = false): void {
     const clickGain = c.createGain();
     click.type = 'square';
     click.frequency.value = highFreqs[reel % highFreqs.length] ?? 3200;
-    clickGain.gain.setValueAtTime(0.26 * weight, now);
+    clickGain.gain.setValueAtTime(0.18 * weight, now);
     clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.018);
     click.connect(clickGain);
     clickGain.connect(dest);
