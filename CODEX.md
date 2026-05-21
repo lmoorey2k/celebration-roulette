@@ -948,6 +948,46 @@ The MediaStream element is also re-kicked (`_streamEl.play()`) on every touch if
 #### Key invariant for future agents
 All sound functions **must** connect to `audioOut(c)`, not `c.destination`. The only exception is `unlockAudio()`, which intentionally connects to `c.destination` to perform the initial silent-buffer gesture unlock (this must hit the raw destination to satisfy iOS's unlock requirement before the stream is set up).
 
+#### Audio hum fix
+After deploying the MediaStream routing, the `<audio>` element played the open stream continuously — even with no oscillators active, the noise floor produced a constant audible hum. Fixed by adding auto-pause: `kickStream()` starts the `<audio>` element when a sound plays and schedules a `setTimeout` (2 seconds) to pause it after the last sound finishes. The touch unlock handler was also updated to avoid eagerly starting the stream on every tap — it now only calls `ensureStream()` to create the nodes without playing.
+
 #### Files changed
-- `utils/audio.ts` — all fixes above; `masterGain()` updated; `audioOut()` added
+- `utils/audio.ts` — all fixes above; `masterGain()` updated; `audioOut()` added; `kickStream()` auto-pause added
 - `app/index.tsx` — debug panel added during investigation, then removed after fix confirmed
+
+---
+
+## 21. Weighted Spin Selection — 2026-05-20
+
+### Problem
+The admin panel had a weight slider (1–5) that saved to the database, but the slot machine's `Math.random()` selection treated every restaurant equally. Changing weight had zero effect on spin outcomes.
+
+### Solution — Two-pool architecture
+The `weight` field (1–5) now maps to a non-linear internal multiplier:
+
+| Tier | Weight | Multiplier | Approx. odds (1 of 54 boosted) |
+|------|--------|------------|-------------------------------|
+| Normal | 1 | 1× | ~2% |
+| Boosted | 2 | 2× | ~4% |
+| Featured | 3 | 5× | ~9% |
+| Hot Pick | 4 | 10× | ~16% |
+| Sponsored | 5 | 50× | ~48% |
+
+**Two separate pools** prevent boosted restaurants from flooding the reel visuals:
+- **`spinPool`** — unique list of eligible restaurants. Used for reel display, category filtering, restaurant counts, and all visual UI.
+- **`weightedPool`** — same restaurants duplicated by their multiplier. Used ONLY by `handleSpin()` when picking the winner via `Math.random()`.
+
+Both pools are filtered by category. The `filteredWeightedPool` in `index.tsx` mirrors whatever category filter is active.
+
+### Key invariant for future agents
+- **Winner selection** must use `weightedPool` (or `pickPool` inside `handleSpin`), never `pool`.
+- **Reel visuals, poolKey, defaultItems, restaurant count, and category filtering** must use `pool` (unique), never `weightedPool`.
+- The multiplier map lives in `hooks/useRestaurants.ts` as `WEIGHT_MULTIPLIER`. To change odds, update that map — no other files need to change.
+- The Chick-fil-A Sunday Easter egg (`shouldWinChickFilA`) takes priority over weighted selection — it overrides the random pick.
+
+### Files changed
+- `hooks/useRestaurants.ts` — `WEIGHT_MULTIPLIER` map; `weightedPool` built via `useMemo`
+- `context/RestaurantContext.tsx` — `weightedPool` added to context interface
+- `components/SlotMachine.tsx` — `weightedPool` prop; `pickPool` used in `handleSpin`
+- `app/index.tsx` — `filteredWeightedPool` computed; passed to `<SlotMachine>`
+- `celebration-backend/pages/admin/index.tsx` — slider labels updated with tier names and approximate odds; Hot Pick/Sponsored use orange/red accent colors
