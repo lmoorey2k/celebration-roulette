@@ -19,7 +19,7 @@ import type { Restaurant } from '@/hooks/useRestaurants';
 import { SlotMachine, type SlotMachineHandle } from '@/components/SlotMachine';
 import { Confetti } from '@/components/Confetti';
 import type { Category } from '@/components/CategoryFilter';
-import { playCelebration, playSadTrombone, resumeAudio, isSunday } from '@/utils/audio';
+import { playCelebration, playSadTrombone, resumeAudio, isSunday, getAudioDebugInfo, playTestBeep } from '@/utils/audio';
 import { openListing, openWebsite } from '@/utils/maps';
 import { Colors, FontSizes, Radii, Shadow, Spacing } from '@/constants/theme';
 
@@ -130,8 +130,10 @@ export default function HomeScreen() {
           <View style={styles.machineIntro}>
             <Text style={styles.machineTitle}>Where should we dine?</Text>
             <Text style={styles.machineHint}>Pick a category and let the reels decide.</Text>
-            <Text style={styles.versionTag}>v1.4.0</Text>
+            <Text style={styles.versionTag}>v1.5.0</Text>
           </View>
+
+          <AudioDebugPanel />
 
           <SlotMachine
             ref={slotRef}
@@ -253,6 +255,51 @@ function WinnerCard({ winner }: { winner: Restaurant }) {
       </View>
 
     </Animated.View>
+  );
+}
+
+// ─── Audio Debug Panel (temporary) ──────────────────────────────────────────
+// Shows AudioContext state and provides a direct test beep button.
+// Remove this once audio is confirmed working on all devices.
+function AudioDebugPanel() {
+  const [info, setInfo] = useState({ state: '?', unlocked: false, ctxExists: false });
+  const [tapCount, setTapCount] = useState(0);
+
+  const refresh = useCallback(() => {
+    setInfo(getAudioDebugInfo());
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    const id = setInterval(refresh, 500);
+    return () => clearInterval(id);
+  }, [refresh]);
+
+  const handleTestBeep = useCallback(() => {
+    resumeAudio();
+    playTestBeep();
+    setTapCount(n => n + 1);
+    setTimeout(refresh, 100);
+  }, [refresh]);
+
+  const stateColor = info.state === 'running' ? '#0a0' : info.state === 'suspended' ? '#c60' : '#c00';
+
+  return (
+    <View style={{ backgroundColor: '#111', borderRadius: 8, padding: 10, width: '100%', maxWidth: 360, marginVertical: 8 }}>
+      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12, marginBottom: 6 }}>🔊 Audio Debug (temp)</Text>
+      <Text style={{ color: stateColor, fontSize: 11, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined }}>
+        ctx: {info.ctxExists ? 'YES' : 'NO'} | state: {info.state} | unlocked: {info.unlocked ? '✅' : '❌'}
+      </Text>
+      <Text style={{ color: '#999', fontSize: 11, marginTop: 2 }}>
+        test taps: {tapCount}
+      </Text>
+      <Pressable
+        onPress={handleTestBeep}
+        style={{ marginTop: 8, backgroundColor: '#2a6', borderRadius: 6, paddingVertical: 8, alignItems: 'center' }}
+      >
+        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>▶ Test Beep (440Hz)</Text>
+      </Pressable>
+    </View>
   );
 }
 

@@ -196,6 +196,35 @@ function masterGain(c: AudioContext, volume: number): GainNode {
   return g;
 }
 
+// ─── Debug helper (temporary) ───────────────────────────────────────────────
+// Exposes internal audio state for the debug panel in index.tsx.
+export function getAudioDebugInfo(): { state: string; unlocked: boolean; ctxExists: boolean } {
+  const c = _ctx;
+  return {
+    state: c ? c.state : 'no-context',
+    unlocked: _unlocked,
+    ctxExists: !!c,
+  };
+}
+
+// Direct test beep — bypasses all game logic, plays a 440Hz tone for 0.2s.
+// If this produces sound, the audio pipeline is working.
+export function playTestBeep(): void {
+  playWhenReady((c) => {
+    const now = c.currentTime;
+    const osc = c.createOscillator();
+    const g = c.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 440;
+    g.gain.setValueAtTime(0.5, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+    osc.connect(g);
+    g.connect(c.destination);
+    osc.start(now);
+    osc.stop(now + 0.25);
+  });
+}
+
 // Immediate gesture sound used to unlock browser audio on lever/button press.
 export function playLeverPull(): void {
   playWhenReady((c) => {
