@@ -3,6 +3,7 @@
 > Use this file to brief Codex (or any AI coding agent) on the project.
 > It captures the current state, recent design decisions, and the remaining task list.
 > When asking another coding agent to continue work, point it here first.
+> After any implementation, deployment, or admin-tooling change, append a dated note here before committing so the next agent has the latest decisions.
 
 ---
 
@@ -32,7 +33,7 @@ The plain styled React Native cabinet approach was rejected. The new direction i
 | Audio | Web Audio API helpers in `utils/audio.ts` |
 | Haptics | `expo-haptics` |
 | Styling | `StyleSheet.create` + selective web-only inline styles |
-| Data | Static JSON in `data/restaurants.json` |
+| Data | Static JSON fallback in `data/restaurants.json`; live API via `EXPO_PUBLIC_API_URL` when configured |
 
 Constraints still apply: no new npm dependencies, no external CSS files, and prefer existing component structure unless there is a strong UX reason to refactor.
 
@@ -1047,3 +1048,27 @@ The admin slider now remains admin-only but supports lower and higher odds aroun
 - `components/SlotMachine.tsx` — true weighted random winner picker
 - `utils/spin.ts` — legacy/result picker updated to use odds multipliers
 - `celebration-backend/pages/admin/index.tsx` — admin slider range, labels, and colors changed from boost-only to two-sided odds
+
+---
+
+## 24. Admin Pick Odds Slider Polish — 2026-05-21
+
+### Problem
+The two-sided odds slider worked, but the admin table could read a little busy. The column label `Odds` was also slightly vague because admins need to understand this affects winner selection, not whether a restaurant is visible.
+
+### Polish
+- Renamed the admin table column from `Odds` to `Pick Odds`.
+- Renamed the edit modal section to `Pick Odds — chance after it is in the wheel`.
+- Shortened row labels from long explanations like `Hot Pick · 10x · Very likely` to compact labels like `Hot Pick · 10x`.
+- Kept the longer explanation in the slider tooltip/title.
+- Tuned lower-odds colors toward cooler gray-blue so the scale reads visually as low/cool → normal → hot/boosted.
+- Added a subtle ring around the Normal `1x` tick so admins can quickly see the home position.
+
+### Key invariant for future agents
+- This was a visual/admin-only polish pass in `celebration-backend/pages/admin/index.tsx`.
+- It did **not** change saved values, odds multipliers, public app behavior, or hide/show behavior.
+- Continue updating this `CODEX.md` file for every meaningful implementation, deployment, or admin-tooling change.
+
+### Verification
+- `npx tsc --noEmit` in `celebration-backend`
+- `npm run build` in `celebration-backend`
