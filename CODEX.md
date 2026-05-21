@@ -1168,3 +1168,35 @@ This pass follows `3b16ca3` (`Tune slot tick timbre`). The timing and mobile ste
 - Preserve the `TICK_LEAD_RATIO` timing unless sync becomes a problem again.
 - If the reel slowdown still is not audible enough, tune the `slowdown` curve in `SlotMachine.tsx` or the pitch/duration changes in `playTick()`, not the visual animation.
 - The target sound is mechanical ratchet/slot reel teeth, not card shuffle, fan noise, or musical whirr.
+
+---
+
+## 29. Real Reel Sample Attempt Reverted — 2026-05-21
+
+### What happened
+Commit `dfc99aa` added a CC0 Freesound/Pixabay reel recording as a looping spin bed. It was reverted in commit `a8b6967` because the sample was a full event-style recording with its own clunky startup and internal timing, so it did not line up cleanly with the app's reel animation.
+
+### Key lesson
+Do **not** use a full slot-machine spin recording as the reel bed. The app already controls lever pull, reel timing, step-down, and reel stops. A full recording fights that timing.
+
+### Desired replacement asset
+Look for a clean, steady loopable reel-running sound:
+- 1-3 seconds is ideal
+- no lever pull
+- no startup clunk
+- no reel stop
+- no win/jackpot sound
+- no built-in slowdown
+- no complete spin event
+- should loop without an obvious bump
+
+Useful search terms:
+- `slot machine reel loop`
+- `slot machine reel spin loop`
+- `mechanical reel loop`
+- `slot reel running sound`
+- `slot machine motor loop`
+- `casino slot reel spinning loop`
+
+### Next implementation note
+When a good licensed loop is found, reintroduce sample-bed playback as a new isolated commit. Keep the existing timing/step-down code from `5098a7a`, but swap in the clean loop instead of a full event recording. Document source, license, and download URL here.
