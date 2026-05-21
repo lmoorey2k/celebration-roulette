@@ -225,6 +225,53 @@ export function playTestBeep(): void {
   });
 }
 
+// ─── HTML Audio test (temporary) ──────────────────────────────────────────
+// Plays a 440Hz tone via an <audio> element instead of the Web Audio API.
+// This uses a completely separate audio path inside iOS. If THIS plays sound
+// but playTestBeep() doesn't, the issue is Web Audio routing. If NEITHER
+// plays, the issue is media volume or iOS audio routing (Bluetooth, etc).
+export function playHtmlAudioTest(): void {
+  // Build a 0.5s WAV with an audible 440Hz sine wave
+  const sampleRate = 22050;
+  const duration = 0.5;
+  const numSamples = Math.round(sampleRate * duration);
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+  const blockAlign = numChannels * (bitsPerSample / 8);
+  const dataSize = numSamples * blockAlign;
+  const buf = new ArrayBuffer(44 + dataSize);
+  const v = new DataView(buf);
+  const w = (o: number, str: string) => {
+    for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i));
+  };
+  w(0, 'RIFF'); v.setUint32(4, 36 + dataSize, true);
+  w(8, 'WAVE'); w(12, 'fmt ');
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);
+  v.setUint16(22, numChannels, true);
+  v.setUint32(24, sampleRate, true);
+  v.setUint32(28, byteRate, true);
+  v.setUint16(32, blockAlign, true);
+  v.setUint16(34, bitsPerSample, true);
+  w(36, 'data'); v.setUint32(40, dataSize, true);
+
+  // Write 440Hz sine wave samples
+  for (let i = 0; i < numSamples; i++) {
+    const t = i / sampleRate;
+    const sample = Math.sin(2 * Math.PI * 440 * t) * 0.5; // 50% volume
+    v.setInt16(44 + i * 2, Math.round(sample * 32767), true);
+  }
+
+  const blob = new Blob([buf], { type: 'audio/wav' });
+  const url = URL.createObjectURL(blob);
+  const el = new Audio(url);
+  el.volume = 1.0;
+  el.play()
+    .then(() => { setTimeout(() => URL.revokeObjectURL(url), 1000); })
+    .catch(() => { URL.revokeObjectURL(url); });
+}
+
 // Immediate gesture sound used to unlock browser audio on lever/button press.
 export function playLeverPull(): void {
   playWhenReady((c) => {

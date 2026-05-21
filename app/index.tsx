@@ -19,7 +19,7 @@ import type { Restaurant } from '@/hooks/useRestaurants';
 import { SlotMachine, type SlotMachineHandle } from '@/components/SlotMachine';
 import { Confetti } from '@/components/Confetti';
 import type { Category } from '@/components/CategoryFilter';
-import { playCelebration, playSadTrombone, resumeAudio, isSunday, getAudioDebugInfo, playTestBeep } from '@/utils/audio';
+import { playCelebration, playSadTrombone, resumeAudio, isSunday, getAudioDebugInfo, playTestBeep, playHtmlAudioTest } from '@/utils/audio';
 import { openListing, openWebsite } from '@/utils/maps';
 import { Colors, FontSizes, Radii, Shadow, Spacing } from '@/constants/theme';
 
@@ -130,7 +130,7 @@ export default function HomeScreen() {
           <View style={styles.machineIntro}>
             <Text style={styles.machineTitle}>Where should we dine?</Text>
             <Text style={styles.machineHint}>Pick a category and let the reels decide.</Text>
-            <Text style={styles.versionTag}>v1.5.0</Text>
+            <Text style={styles.versionTag}>v1.6.0</Text>
           </View>
 
           <AudioDebugPanel />
@@ -297,8 +297,18 @@ function AudioDebugPanel() {
         onPress={handleTestBeep}
         style={{ marginTop: 8, backgroundColor: '#2a6', borderRadius: 6, paddingVertical: 8, alignItems: 'center' }}
       >
-        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>▶ Test Beep (440Hz)</Text>
+        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>▶ Test 1: Web Audio (oscillator)</Text>
       </Pressable>
+      <Pressable
+        onPress={() => { playHtmlAudioTest(); setTapCount(n => n + 1); }}
+        style={{ marginTop: 6, backgroundColor: '#26a', borderRadius: 6, paddingVertical: 8, alignItems: 'center' }}
+      >
+        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>▶ Test 2: HTML Audio (WAV file)</Text>
+      </Pressable>
+      <Text style={{ color: '#777', fontSize: 10, marginTop: 6, lineHeight: 14 }}>
+        If Test 2 works but Test 1 doesn't → Web Audio routing issue{'\n'}
+        If NEITHER works → media volume is at 0 (press volume up while tapping)
+      </Text>
     </View>
   );
 }
