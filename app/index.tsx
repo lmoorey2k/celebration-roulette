@@ -130,6 +130,7 @@ export default function HomeScreen() {
           <View style={styles.machineIntro}>
             <Text style={styles.machineTitle}>Where should we dine?</Text>
             <Text style={styles.machineHint}>Pick a category and let the reels decide.</Text>
+            <Text style={styles.versionTag}>v1.4.0</Text>
           </View>
 
           <SlotMachine
@@ -375,6 +376,7 @@ const styles = StyleSheet.create({
   machineIntro: { width: '100%', paddingHorizontal: Spacing.lg, gap: 6, alignItems: 'center' },
   machineTitle: { color: Colors.primary, fontSize: FontSizes.xl, lineHeight: 28, fontWeight: '800', textAlign: 'center' },
   machineHint: { color: Colors.textMuted, fontSize: FontSizes.md, lineHeight: 22, textAlign: 'center', maxWidth: 460 },
+  versionTag: { color: Colors.textMuted, fontSize: 10, opacity: 0.5, textAlign: 'center', marginTop: 2 },
   footer: { alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.lg, maxWidth: 760 },
   emptyNote: { fontSize: FontSizes.sm, color: Colors.textMuted, textAlign: 'center', lineHeight: 18, maxWidth: 420 },
   listLink: { paddingVertical: Spacing.sm },
