@@ -20,17 +20,7 @@ import {
 } from 'react-native';
 import { getOddsMultiplier, type Restaurant } from '@/hooks/useRestaurants';
 import { FontSizes, Radii } from '@/constants/theme';
-import {
-  resumeAudio,
-  playLeverPull,
-  playTick,
-  playReelStop,
-  playWinDing,
-  startReelSampleSpin,
-  setReelSampleActiveReels,
-  stopReelSampleSpin,
-  playSampleReelStop,
-} from '@/utils/audio';
+import { resumeAudio, playLeverPull, playTick, playReelStop, playWinDing } from '@/utils/audio';
 import { CATEGORIES, type Category } from './CategoryFilter';
 
 const CABINET_IMAGE = require('../assets/images/slot-machine-cabinet.png');
@@ -47,10 +37,10 @@ const ROTATIONS = [12, 15, 18];
 const SPRING_F = 16;
 const SPRING_T = 240;
 const SPIN_PREROLL_MS = 500;
+const SYNTH_STOP_LEAD_MS = 120;
 // Fire tick sounds slightly before the visual row boundary. Browser/iOS audio
 // output has a little latency, so exact-boundary scheduling feels behind.
 const TICK_LEAD_RATIO = 0.38;
-const SAMPLE_STOP_LEAD_MS = 130;
 const STOP_ORDERS: readonly (readonly number[])[] = [
   [0, 1, 2], [0, 2, 1], [1, 0, 2],
   [1, 2, 0], [2, 0, 1], [2, 1, 0],
@@ -230,7 +220,8 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
   const tickIds       = useRef<string[]>(['', '', '']);
   const prevB         = useRef([0, 0, 0]);
   const stoppedReels  = useRef(0);
-  const sampleStopPlayed = useRef([false, false, false]);
+  const stopSoundTimers = useRef<Array<ReturnType<typeof setTimeout> | null>>([null, null, null]);
+  const stopSoundPlayed = useRef([false, false, false]);
   const lastStopOrder = useRef<readonly number[] | null>(null);
   // Tracks whether a spin animation is currently in flight. Used to prevent
   // the pool-change reset effect from resetting the reels mid-spin (which
@@ -265,6 +256,12 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
   }, [anims]);
 
   const clearAllTicks = useCallback(() => { tickIds.current.forEach((_, i) => clearReelTick(i)); }, [clearReelTick]);
+  const clearStopSoundTimers = useCallback(() => {
+    stopSoundTimers.current.forEach((timer, i) => {
+      if (timer) clearTimeout(timer);
+      stopSoundTimers.current[i] = null;
+    });
+  }, []);
 
   // Reset reels when pool / category changes — but NEVER during an active spin.
   // The live API fetch can arrive mid-spin and change poolKey, which would
@@ -275,13 +272,12 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
     setShowGlow(false); stopGlow(); setReelItems(defaultItems());
   }, [poolKey, activeCategory, anims, defaultItems, stopGlow]);
 
-  useEffect(() => () => { clearAllTicks(); stopReelSampleSpin(); stopGlow(); }, [clearAllTicks, stopGlow]);
+  useEffect(() => () => { clearAllTicks(); clearStopSoundTimers(); stopGlow(); }, [clearAllTicks, clearStopSoundTimers, stopGlow]);
 
   const handleSpin = useCallback((playSound = true) => {
     if (spinning || pool.length < 2) return;
     resumeAudio();
     if (playSound) playLeverPull();
-    const usingSampleSpin = playSound ? startReelSampleSpin() : false;
 
     // Sunday Easter egg: if shouldWinChickFilA is set AND Chick-fil-A is in
     // the current pool, force it to win. The animation still looks completely
@@ -308,9 +304,10 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
     anims.forEach((a) => a.setValue(0));
     stopGlow(); setShowGlow(false); setReelItems(data.map((d) => d.items));
     clearAllTicks();
+    clearStopSoundTimers();
     prevB.current = [0, 0, 0];
     stoppedReels.current = 0;
-    sampleStopPlayed.current = [false, false, false];
+    stopSoundPlayed.current = [false, false, false];
     const tickLeadPx = itemH * TICK_LEAD_RATIO;
     anims.forEach((anim, reel) => {
       tickIds.current[reel] = anim.addListener(({ value }) => {
@@ -329,15 +326,15 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
     onSpinStart();
 
     let finished = 0;
-    const sampleStopTimers: Array<ReturnType<typeof setTimeout> | null> = [null, null, null];
     data.forEach((reelData, i) => {
       const stopRank = profile(i);
-      if (usingSampleSpin) {
-        const stopLead = Math.max(0, SPIN_PREROLL_MS + DURATIONS[stopRank] - SAMPLE_STOP_LEAD_MS);
-        sampleStopTimers[i] = setTimeout(() => {
-          sampleStopPlayed.current[i] = playSampleReelStop(stopRank, stopRank === NUM_REELS - 1);
-        }, stopLead);
-      }
+      const stopAt = Math.max(0, SPIN_PREROLL_MS + DURATIONS[stopRank] - SYNTH_STOP_LEAD_MS);
+      stopSoundTimers.current[i] = setTimeout(() => {
+        stopSoundTimers.current[i] = null;
+        stopSoundPlayed.current[i] = true;
+        playReelStop(i, stopRank, stopRank === NUM_REELS - 1);
+      }, stopAt);
+
       // Single smooth deceleration directly to targetY — no overshoot step.
       // A two-step sequence (overshoot → spring/back-ease) caused misalignment
       // because: (a) springs don't guarantee an exact landing pixel, and (b) if
@@ -355,16 +352,14 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
         if (!ok) return;
         anims[i].setValue(reelData.targetY); // snap to exact pixel
         clearReelTick(i);
-        stoppedReels.current += 1;
-        const remainingReels = NUM_REELS - stoppedReels.current;
-        setReelSampleActiveReels(remainingReels);
-        if (sampleStopTimers[i]) {
-          clearTimeout(sampleStopTimers[i]!);
-          sampleStopTimers[i] = null;
+        if (stopSoundTimers.current[i]) {
+          clearTimeout(stopSoundTimers.current[i]);
+          stopSoundTimers.current[i] = null;
         }
-        const playedSampleStop = usingSampleSpin && sampleStopPlayed.current[i];
-        if (remainingReels === 0) stopReelSampleSpin();
-        if (!playedSampleStop) playReelStop(i, stopRank, stoppedReels.current === NUM_REELS);
+        stoppedReels.current += 1;
+        if (!stopSoundPlayed.current[i]) {
+          playReelStop(i, stopRank, stoppedReels.current === NUM_REELS);
+        }
         finished += 1;
         if (finished === NUM_REELS) {
           isSpinActiveRef.current = false;

@@ -1300,3 +1300,27 @@ This pass follows `e74481a` (`Use new approved spin bed timing`). The new approv
 - If the start feels too sluggish or too quick, tune `SPIN_PREROLL_MS` first.
 - If stop timing changes after adjusting preroll, make sure stop timers still include `SPIN_PREROLL_MS + duration - SAMPLE_STOP_LEAD_MS`.
 - The goal is for the audio startup/ramp to lead the visual reels, like a mechanical machine engaging before the reels reach speed.
+
+---
+
+## 34. Audio V1 Mechanical Reset — 2026-05-21
+
+### Starting point / rollback
+This pass follows `7e55e46` (`Add mechanical preroll before reel motion`). The approved sample direction was rejected because the spin bed still did not feel right, so this reset returns the game to the synthetic mechanical baseline from `5098a7a` and keeps only the parts of the later work that still matched the desired feel.
+
+### Version marker
+- Current audio checkpoint: `audio-v1-mechanical-reset`
+- The marker lives in `utils/audio.ts` as `SLOT_AUDIO_VERSION` so we can identify the deployed sound pass while tuning continues.
+
+### Changes
+- Removed the approved sample WAV assets from `public/audio/`.
+- Removed sample-bed playback from the reel flow by restoring the synthetic `playLeverPull()`, `playTick()`, and `playReelStop()` path.
+- Kept the 500ms spin preroll delay so pressing the button produces a mechanical engage moment before the reels visibly start moving.
+- Added early scheduled synthetic stop sounds using `SYNTH_STOP_LEAD_MS = 120`, with callback fallback if a timer does not fire.
+- Preserved per-reel tick slowdown and active-reel volume stepping so the rolling sound drops from 3 reels to 2 reels to 1 reel.
+
+### Key invariant for future agents
+- Treat `audio-v1-mechanical-reset` as the new named baseline while tuning.
+- If the stop clunk feels early or late, tune `SYNTH_STOP_LEAD_MS` before changing reel animation durations.
+- If the button-to-reel delay feels wrong, tune `SPIN_PREROLL_MS`.
+- Do not reintroduce full-event slot-machine recordings unless they are split into controllable start, loop, and stop pieces that match the app's animation timing.
