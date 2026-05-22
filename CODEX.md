@@ -1423,3 +1423,76 @@ This pass follows `8211777` (`Make spin press immediate and keep spin again labe
 
 ### Key invariant for future agents
 - If the pause feels too long, tune `SPIN_PREROLL_MS`; do not compensate by moving tick or stop scheduling separately.
+
+---
+
+## 40. Audio V1.5 Snappier Spin, Ramp-Up, Wider Reel Mix — 2026-05-21
+
+### Starting point / rollback
+This pass follows the v1.4 2000ms preroll, which felt too long after the button press. User feedback: the delay was too long, the spin didn't feel like it ramped up, and the volume difference between 1/2/3 active reels was too subtle.
+
+### Version marker
+- Current audio checkpoint: `audio-v1.5-snappier-spin-600ms`
+- Visible badge: `v1.5 | 600ms`
+
+### Changes
+- `SPIN_PREROLL_MS` cut from 2000ms to 600ms so the spin follows the button press much more responsively. Stop scheduling still derives from `SPIN_PREROLL_MS + DURATIONS[...] - SYNTH_STOP_LEAD_MS`, so stop clunks remain aligned.
+- Spin easing changed from `Easing.out(Easing.cubic)` to `Easing.bezier(0.22, 0.05, 0.25, 1)`. The first ~12% of progress now eases in, giving a real ramp-up feel before the trailing deceleration.
+- `playTick()` now accepts a `rampup` argument (0–1, where 1 = very beginning of spin). Tick volume, duration and pitch are attenuated during the ramp so the reels audibly accelerate, not just visually. SlotMachine computes `rampup` from progress and `RAMPUP_PROGRESS = 0.12`.
+- Tick volume scaling per active reel widened from `{1: 0.026, 2: 0.048, 3: 0.074}` to `{1: 0.020, 2: 0.052, 3: 0.105}` so 3 reels feel clearly louder than 1.
+- `playLeverPull()` got a low-end sub-thud (150→58 Hz sine), a punchier square downstroke, a stronger contact click, and tighter spring timing — the button now feels more mechanical.
+
+### Key invariant for future agents
+- If the spin still feels slow to start, retune `RAMPUP_PROGRESS` or the bezier control points (especially the second X) before touching `DURATIONS`.
+- Keep the `rampup` parameter passed from the animation listener in `SlotMachine.tsx`; removing it will silently re-flatten the ramp without breaking the build.
+- If the v1.5 button thud is too boomy on iPhone, drop the `sub` oscillator gain in `playLeverPull()` first before reverting the rest.
+
+---
+
+## 41. Audio V1.6 Mechanical Tick (Filtered Noise + Body Thump) — 2026-05-21
+
+### Starting point / rollback
+This pass follows v1.5. The spin timing, preroll, ramp-up and reel-volume mapping all felt right, but the tick itself sounded buzzy/electronic — the square-wave + triangle "ratchet" gave away the synth. Goal: make each tick feel like a wooden pawl hitting a metal cog, not a tone.
+
+### Version marker
+- Current audio checkpoint: `audio-v1.6-mechanical-tick-600ms`
+- Visible badge: `v1.6 | 600ms`
+
+### Changes
+- Added `_noiseBuffer` (lazy 80ms mono white-noise buffer) and `getNoiseBuffer(c)` helper in `utils/audio.ts`. Generated once per AudioContext and reused for every tick.
+- Rewrote `playTick()` around three short layers instead of two oscillators:
+  1. **Contact**: white-noise burst routed through a per-reel bandpass (centers 2400/2700/3050 Hz, Q ≈ 4–5) with random ±8% center jitter and 0.92–1.10× playback-rate jitter so consecutive ticks never sound identical.
+  2. **Body**: low triangle (≈92/100/108 Hz per reel) with a fast downward pitch envelope (1.55× → 1×) — gives the click weight without becoming a bass note.
+  3. **Tink**: very brief (≈9 ms) triangle at 1950–2450 Hz at ~16% relative gain — keeps a faint metallic seasoning without buzz.
+- Slowdown still attenuates filter center + lowers body pitch. Rampup still attenuates overall level and the filter center, so the audible acceleration at spin start is preserved.
+- Volume map `levelByActiveReels` unchanged from v1.5: `{1: 0.020, 2: 0.052, 3: 0.105}`.
+- `playLeverPull()`, `playReelStop()`, win/lose sounds left alone — only the rolling tick is replaced.
+
+### Key invariant for future agents
+- Do not switch the contact layer back to a raw oscillator — the buzzy quality came from a tonal source. If the noise feels too "shh", lower the Q (less filter ringing) or shorten the gain envelope, don't reintroduce square waves.
+- The per-tick random jitter (filter center, playback rate, Q) is what kills the robotic repetition. Keep it.
+- `_noiseBuffer` is shared across calls — never mutate it after creation. If you change the buffer length, also update the 0.06s `noise.stop()` bound so it doesn't get truncated.
+- If volume across reels feels off, retune `levelByActiveReels` first; the per-layer multipliers (4.6× noise, 1.45× body, 0.16× tink) were balanced against that map.
+
+---
+
+## 42. V1.6 Cleanup — Removed Debug Badge, UI Finalized — 2026-05-21
+
+### Starting point
+This pass follows v1.6 mechanical tick work. The sound design was complete and approved, but a temporary debug badge (`v1.6 | 600ms`) was still visible on the cabinet for testing and tuning purposes.
+
+### Changes
+- Removed the visible `<Text>` component from `components/SlotMachine.tsx` (lines 415–427) that displayed the `AUDIO_TEST_LABEL` badge.
+- Removed the `AUDIO_TEST_LABEL` constant definition from `SlotMachine.tsx`.
+- Removed the unused `SLOT_AUDIO_VERSION` import from `utils/audio.ts` in the component file (the constant remains in `audio.ts` for future rollback/debugging reference).
+- No changes to sound synthesis, animation timing, or reel logic.
+
+### Verification
+- `npx tsc --noEmit` passes with no errors.
+- Cabinet now displays cleanly without any version/timing text overlay.
+- All sound behavior remains unchanged from v1.6.
+
+### Key invariant for future agents
+- The `SLOT_AUDIO_VERSION` constant in `utils/audio.ts` remains as an internal reference for debugging and rollback decisions. It is no longer displayed in the UI.
+- If future audio tuning passes need a visible testing label, use a separate component prop or state to control visibility rather than hardcoding the label in the JSX.
+- v1.6 is now the stable, UI-clean baseline for future sound design iterations.

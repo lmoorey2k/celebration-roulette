@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import { getOddsMultiplier, type Restaurant } from '@/hooks/useRestaurants';
 import { FontSizes, Radii } from '@/constants/theme';
-import { resumeAudio, playLeverPull, playTick, playReelStop, playWinDing, SLOT_AUDIO_VERSION } from '@/utils/audio';
+import { resumeAudio, playLeverPull, playTick, playReelStop, playWinDing } from '@/utils/audio';
 import { CATEGORIES, type Category } from './CategoryFilter';
 
 const CABINET_IMAGE = require('../assets/images/slot-machine-cabinet.png');
@@ -36,9 +36,9 @@ const DURATIONS = [3200, 4600, 6000];
 const ROTATIONS = [12, 15, 18];
 const SPRING_F = 16;
 const SPRING_T = 240;
-const SPIN_PREROLL_MS = 2000;
+const SPIN_PREROLL_MS = 600;
 const SYNTH_STOP_LEAD_MS = 120;
-const AUDIO_TEST_LABEL = `v1.4 | ${SPIN_PREROLL_MS}ms`;
+const RAMPUP_PROGRESS = 0.12;
 // Fire tick sounds slightly before the visual row boundary. Browser/iOS audio
 // output has a little latency, so exact-boundary scheduling feels behind.
 const TICK_LEAD_RATIO = 0.38;
@@ -326,7 +326,8 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
           const target = Math.max(itemH, Math.abs(data[reel]?.targetY ?? itemH));
           const progress = Math.min(1, Math.abs(value) / target);
           const slowdown = Math.max(0, Math.min(1, (progress - 0.66) / 0.34));
-          playTick(reel, NUM_REELS - stoppedReels.current, slowdown);
+          const rampup = Math.max(0, Math.min(1, 1 - progress / RAMPUP_PROGRESS));
+          playTick(reel, NUM_REELS - stoppedReels.current, slowdown, rampup);
         }
       });
     });
@@ -355,7 +356,7 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
         toValue: reelData.targetY,
         duration: DURATIONS[profile(i)],
         delay: SPIN_PREROLL_MS,
-        easing: Easing.out(Easing.cubic),
+        easing: Easing.bezier(0.22, 0.05, 0.25, 1),
         useNativeDriver: true,
       }).start(({ finished: ok }) => {
         if (!ok) return;
@@ -410,19 +411,6 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
       {/* Cabinet */}
       <View style={[styles.cabinetStage, { width: cabinetW, height: cabinetH }]}>
         <Image source={CABINET_IMAGE} style={styles.cabinetImage} resizeMode="contain" accessibilityIgnoresInvertColors />
-        <Text
-          pointerEvents="none"
-          style={[
-            styles.audioVersionBadge,
-            {
-              top: Math.round(cabinetH * 0.214),
-              left: Math.round(cabinetW * 0.34),
-              width: Math.round(cabinetW * 0.32),
-            },
-          ]}
-        >
-          {AUDIO_TEST_LABEL}
-        </Text>
 
         {/* Live reel window */}
         <View style={[styles.reelWindow, { left: reelLeft, top: reelTop, width: reelTotalW, height: reelH, borderRadius: reelBR }]}>

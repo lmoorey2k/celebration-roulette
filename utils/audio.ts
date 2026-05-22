@@ -4,7 +4,7 @@ let _ctx: AudioContext | null = null;
 let _resumePromise: Promise<void> | null = null;
 let _unlocked = false;
 
-export const SLOT_AUDIO_VERSION = 'audio-v1.4-button-immediate-2000ms';
+export const SLOT_AUDIO_VERSION = 'audio-v1.6-mechanical-tick-600ms';
 
 // ─── MediaStream audio routing ──────────────────────────────────────────────
 // iOS Safari can report AudioContext as 'running' while its hardware output
@@ -200,6 +200,20 @@ function masterGain(c: AudioContext, volume: number): GainNode {
   return g;
 }
 
+// Pre-generated white-noise buffer reused for every mechanical tick.
+// Real slot-machine clicks are mostly broadband noise (wood pawl on metal cog);
+// pure oscillators sound buzzy and electronic.
+let _noiseBuffer: AudioBuffer | null = null;
+function getNoiseBuffer(c: AudioContext): AudioBuffer {
+  if (!_noiseBuffer || _noiseBuffer.sampleRate !== c.sampleRate) {
+    const len = Math.max(1, Math.floor(c.sampleRate * 0.08));
+    _noiseBuffer = c.createBuffer(1, len, c.sampleRate);
+    const data = _noiseBuffer.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+  }
+  return _noiseBuffer;
+}
+
 // ─── Sound effects ──────────────────────────────────────────────────────────
 // All sounds connect to audioOut(c) instead of c.destination. On web, this
 // routes through a MediaStreamDestination → <audio> element pipeline, which
@@ -208,14 +222,27 @@ function masterGain(c: AudioContext, volume: number): GainNode {
 export function playLeverPull(): void {
   playWhenReady((c) => {
     const now = c.currentTime;
-    const out = masterGain(c, 1);
+    const out = masterGain(c, 1.05);
+
+    // Sub thud — adds the low-end body the original click was missing.
+    const sub = c.createOscillator();
+    const subGain = c.createGain();
+    sub.type = 'sine';
+    sub.frequency.setValueAtTime(150, now);
+    sub.frequency.exponentialRampToValueAtTime(58, now + 0.09);
+    subGain.gain.setValueAtTime(0.58, now);
+    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+    sub.connect(subGain);
+    subGain.connect(out);
+    sub.start(now);
+    sub.stop(now + 0.12);
 
     const down = c.createOscillator();
     const downGain = c.createGain();
     down.type = 'square';
-    down.frequency.setValueAtTime(360, now);
+    down.frequency.setValueAtTime(420, now);
     down.frequency.exponentialRampToValueAtTime(120, now + 0.055);
-    downGain.gain.setValueAtTime(0.62, now);
+    downGain.gain.setValueAtTime(0.74, now);
     downGain.gain.exponentialRampToValueAtTime(0.001, now + 0.085);
     down.connect(downGain);
     downGain.connect(out);
@@ -226,61 +253,95 @@ export function playLeverPull(): void {
     const contactGain = c.createGain();
     contact.type = 'triangle';
     contact.frequency.value = 1380;
-    contactGain.gain.setValueAtTime(0.32, now + 0.006);
+    contactGain.gain.setValueAtTime(0.42, now + 0.004);
     contactGain.gain.exponentialRampToValueAtTime(0.001, now + 0.034);
     contact.connect(contactGain);
     contactGain.connect(out);
-    contact.start(now + 0.006);
+    contact.start(now + 0.004);
     contact.stop(now + 0.04);
 
     const spring = c.createOscillator();
     const springGain = c.createGain();
     spring.type = 'square';
-    spring.frequency.setValueAtTime(720, now + 0.085);
-    spring.frequency.exponentialRampToValueAtTime(390, now + 0.15);
-    springGain.gain.setValueAtTime(0, now + 0.07);
-    springGain.gain.linearRampToValueAtTime(0.2, now + 0.086);
+    spring.frequency.setValueAtTime(760, now + 0.07);
+    spring.frequency.exponentialRampToValueAtTime(360, now + 0.15);
+    springGain.gain.setValueAtTime(0, now + 0.06);
+    springGain.gain.linearRampToValueAtTime(0.24, now + 0.075);
     springGain.gain.exponentialRampToValueAtTime(0.001, now + 0.155);
     spring.connect(springGain);
     springGain.connect(out);
-    spring.start(now + 0.075);
+    spring.start(now + 0.065);
     spring.stop(now + 0.16);
 
     setTimeout(() => out.disconnect(), 190);
   });
 }
 
-export function playTick(reel = 0, activeReels = 3, slowdown = 0): void {
+export function playTick(reel = 0, activeReels = 3, slowdown = 0, rampup = 0): void {
   playWhenReady((c) => {
     const now = c.currentTime;
     const dest = audioOut(c);
     const activeCount = Math.max(1, Math.min(3, Math.round(activeReels)));
     const slow = Math.max(0, Math.min(1, slowdown));
-    const levelByActiveReels: Record<number, number> = { 1: 0.026, 2: 0.048, 3: 0.074 };
-    const level = levelByActiveReels[activeCount] ?? 0.082;
-    const tickDur = 0.006 + slow * 0.006;
+    const ramp = Math.max(0, Math.min(1, rampup));
+    // Wider dynamic range so 1 reel feels noticeably softer than 3.
+    const levelByActiveReels: Record<number, number> = { 1: 0.020, 2: 0.052, 3: 0.105 };
+    const baseLevel = levelByActiveReels[activeCount] ?? 0.105;
+    // Quieter during the startup ramp.
+    const level = baseLevel * (1 - ramp * 0.55);
 
-    const ratchet = c.createOscillator();
-    const ratchetGain = c.createGain();
-    ratchet.type = 'square';
-    ratchet.frequency.value = ([520, 585, 660][reel % 3] ?? 585) * (1 - slow * 0.28);
-    ratchetGain.gain.setValueAtTime(level, now);
-    ratchetGain.gain.exponentialRampToValueAtTime(0.001, now + tickDur);
-    ratchet.connect(ratchetGain);
-    ratchetGain.connect(dest);
-    ratchet.start(now);
-    ratchet.stop(now + tickDur + 0.002);
+    // 1) Wood/metal CONTACT — a tightly band-passed noise burst.
+    // The Q-narrowed noise gives the pawl-hitting-cog character; pure oscillators
+    // come out buzzy. Per-reel filter centers + a small random jitter break the
+    // robotic repetition that bothered the user.
+    const filterBase = [2400, 2700, 3050][reel % 3] ?? 2700;
+    const filterFreq = filterBase * (1 - slow * 0.22) * (1 - ramp * 0.30) * (0.92 + Math.random() * 0.16);
 
-    const metal = c.createOscillator();
-    const metalGain = c.createGain();
-    metal.type = 'triangle';
-    metal.frequency.value = ([1350, 1500, 1680][reel % 3] ?? 1500) * (1 - slow * 0.18);
-    metalGain.gain.setValueAtTime(level * 0.34, now);
-    metalGain.gain.exponentialRampToValueAtTime(0.001, now + 0.005);
-    metal.connect(metalGain);
-    metalGain.connect(dest);
-    metal.start(now);
-    metal.stop(now + 0.006);
+    const noise = c.createBufferSource();
+    noise.buffer = getNoiseBuffer(c);
+    noise.playbackRate.value = 0.92 + Math.random() * 0.18;
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = filterFreq;
+    bp.Q.value = 3.6 + Math.random() * 1.4;
+    const noiseGain = c.createGain();
+    // Bandpassed noise reads much quieter per-sample than an oscillator at the
+    // same gain; boost so the perceived level lines up with the volume map.
+    noiseGain.gain.setValueAtTime(level * 4.6, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.028 + slow * 0.012);
+    noise.connect(bp);
+    bp.connect(noiseGain);
+    noiseGain.connect(dest);
+    noise.start(now);
+    noise.stop(now + 0.06);
+
+    // 2) BODY THUMP — the weight of the spinning reel. Low triangle with a fast
+    // downward pitch envelope so it lands as a "thunk" rather than a tone.
+    const bodyFreqBase = ([92, 100, 108][reel % 3] ?? 100) * (1 - slow * 0.16);
+    const body = c.createOscillator();
+    const bodyGain = c.createGain();
+    body.type = 'triangle';
+    body.frequency.setValueAtTime(bodyFreqBase * 1.55, now);
+    body.frequency.exponentialRampToValueAtTime(bodyFreqBase, now + 0.022);
+    bodyGain.gain.setValueAtTime(level * 1.45, now);
+    bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04 + slow * 0.02);
+    body.connect(bodyGain);
+    bodyGain.connect(dest);
+    body.start(now);
+    body.stop(now + 0.05);
+
+    // 3) HIGH "TINK" — a single very brief triangle adds a tiny metallic
+    // resonance without the square-wave buzz. Volume kept low; this is seasoning.
+    const tink = c.createOscillator();
+    const tinkGain = c.createGain();
+    tink.type = 'triangle';
+    tink.frequency.value = ([1950, 2200, 2450][reel % 3] ?? 2200) * (1 - ramp * 0.18);
+    tinkGain.gain.setValueAtTime(level * 0.16, now);
+    tinkGain.gain.exponentialRampToValueAtTime(0.001, now + 0.007);
+    tink.connect(tinkGain);
+    tinkGain.connect(dest);
+    tink.start(now);
+    tink.stop(now + 0.009);
   });
 }
 
