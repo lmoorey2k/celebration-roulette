@@ -11,8 +11,10 @@ import {
   Easing,
   Linking,
   Platform,
+  Share,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as ExpoLinking from 'expo-linking';
 import * as Haptics from 'expo-haptics';
 import { useRestaurantContext } from '@/context/RestaurantContext';
 import type { Restaurant } from '@/hooks/useRestaurants';
@@ -24,6 +26,7 @@ import { openListing, openWebsite } from '@/utils/maps';
 import { Colors, FontSizes, Radii, Shadow, Spacing } from '@/constants/theme';
 
 type SpinState = 'idle' | 'spinning' | 'result';
+type WinnerCardMode = 'personal' | 'shared';
 
 // ID of Chick-fil-A in restaurants.json. Used for the Sunday Easter egg —
 // the first spin on any Sunday is rigged to land on Chick-fil-A, then shows
@@ -40,13 +43,47 @@ function isSundayOrForced(): boolean {
   return isSunday();
 }
 
+function sharedPickUrl(restaurantId: number): string {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return `${window.location.origin}/?pick=${restaurantId}`;
+  }
+
+  return ExpoLinking.createURL('/', { queryParams: { pick: String(restaurantId) } });
+}
+
+async function shareRestaurantPick(restaurant: Restaurant) {
+  const url = sharedPickUrl(restaurant.id);
+  const message = `The Celebration Restaurant Roller picked ${restaurant.name} for us.\n\nWant to go, or spin your own pick?\n${url}`;
+
+  try {
+    await Share.share({
+      title: `Celebration pick: ${restaurant.name}`,
+      message,
+      url,
+    });
+  } catch {
+    // Native share sheets can be dismissed or unavailable; no user-facing error needed.
+  }
+}
+
+function clearSharedPickParam() {
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.history?.replaceState) {
+    const params = new URLSearchParams(window.location.search);
+    params.delete('pick');
+    const nextSearch = params.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}`);
+  }
+}
+
 export default function HomeScreen() {
   const router   = useRouter();
-  const { spinPool, weightedPool } = useRestaurantContext();
+  const { pick } = useLocalSearchParams<{ pick?: string }>();
+  const { restaurants, spinPool, weightedPool } = useRestaurantContext();
   const [spinState, setSpinState] = useState<SpinState>('idle');
   const [winner,    setWinner]    = useState<Restaurant | null>(null);
   const [hasCompletedSpin, setHasCompletedSpin] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [winnerCardMode, setWinnerCardMode] = useState<WinnerCardMode>('personal');
   const [activeCategory, setActiveCategory] = useState<Category>('all');
   // Tracks whether the rigged Sunday Chick-fil-A spin has already been used
   // this session. Resets when component mounts (new session) so each Sunday
@@ -63,6 +100,7 @@ export default function HomeScreen() {
 
   const scrollRef = useRef<ScrollView>(null);
   const slotRef   = useRef<SlotMachineHandle>(null);
+  const appliedSharedPickRef = useRef<string | null>(null);
 
   const filteredPool = useMemo(() => {
     if (activeCategory === 'all') return spinPool;
@@ -87,6 +125,8 @@ export default function HomeScreen() {
     setSpinState('spinning');
     setShowConfetti(false);
     setWinner(null);
+    setWinnerCardMode('personal');
+    clearSharedPickParam();
     resumeAudio();
     // If this spin is the rigged Sunday Chick-fil-A spin, mark it as used now
     // so subsequent spins return to normal random behaviour.
@@ -100,6 +140,7 @@ export default function HomeScreen() {
     setWinner(restaurant);
     setHasCompletedSpin(true);
     setSpinState('result');
+    setWinnerCardMode('personal');
     // Sunday Chick-fil-A Easter egg: play the sad trombone instead of the
     // celebration sound, and skip confetti so the "closed" message lands clearly.
     const isClosedSunday = restaurant.id === CHICK_FIL_A_ID && isSundayOrForced();
@@ -112,6 +153,22 @@ export default function HomeScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
   }, []);
+
+  useEffect(() => {
+    const pickId = Number(Array.isArray(pick) ? pick[0] : pick);
+    if (!Number.isFinite(pickId) || pickId <= 0) return;
+    if (appliedSharedPickRef.current === String(pickId)) return;
+
+    const sharedRestaurant = restaurants.find((r) => r.id === pickId);
+    if (!sharedRestaurant) return;
+
+    appliedSharedPickRef.current = String(pickId);
+    setWinner(sharedRestaurant);
+    setHasCompletedSpin(true);
+    setSpinState('result');
+    setShowConfetti(false);
+    setWinnerCardMode('shared');
+  }, [pick, restaurants]);
 
   // Auto-scroll to reveal the winner card when it appears
   useEffect(() => {
@@ -158,7 +215,7 @@ export default function HomeScreen() {
             Suppressed on the Sunday Chick-fil-A Easter egg; SundayClosedOverlay
             takes over the full screen with a dramatic reveal instead. */}
         {spinState === 'result' && winner && !(winner.id === CHICK_FIL_A_ID && isSundayOrForced()) && (
-          <WinnerCard winner={winner} />
+          <WinnerCard winner={winner} mode={winnerCardMode} onSpinOwnPick={handleSpinAgain} />
         )}
 
         <View style={styles.footer}>
@@ -187,7 +244,15 @@ export default function HomeScreen() {
 
 // ─── Winner card ──────────────────────────────────────────────────────────────
 
-function WinnerCard({ winner }: { winner: Restaurant }) {
+function WinnerCard({
+  winner,
+  mode,
+  onSpinOwnPick,
+}: {
+  winner: Restaurant;
+  mode: WinnerCardMode;
+  onSpinOwnPick: () => void;
+}) {
   const slideAnim = useRef(new Animated.Value(48)).current;
   const fadeAnim  = useRef(new Animated.Value(0)).current;
 
@@ -203,6 +268,8 @@ function WinnerCard({ winner }: { winner: Restaurant }) {
   const handleMaps    = () => openListing(winner.name, winner.address);
   const handleWebsite = () => winner.website_url && openWebsite(winner.website_url);
   const handlePhone   = () => winner.phone && Linking.openURL('tel:' + winner.phone);
+  const handleShare   = () => shareRestaurantPick(winner);
+  const isSharedPick  = mode === 'shared';
 
   return (
     <Animated.View style={[wStyles.wrap, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
@@ -217,7 +284,7 @@ function WinnerCard({ winner }: { winner: Restaurant }) {
             </View>
           )}
           <View style={wStyles.info}>
-            <Text style={wStyles.eyebrow}>Your Celebration pick</Text>
+            <Text style={wStyles.eyebrow}>{isSharedPick ? 'A Celebration dining pick' : 'Your Celebration pick'}</Text>
             <Text style={wStyles.name} numberOfLines={2}>{winner.name}</Text>
             <Text style={wStyles.address} numberOfLines={2}>{winner.address}</Text>
             {winner.phone ? (
@@ -244,6 +311,25 @@ function WinnerCard({ winner }: { winner: Restaurant }) {
               accessibilityRole="link"
             >
               <Text style={wStyles.secondaryText}>Call</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        <View style={wStyles.shareActions}>
+          <Pressable
+            onPress={handleShare}
+            style={({ pressed }) => [wStyles.secondaryWide, pressed && wStyles.pressed]}
+            accessibilityRole="button"
+          >
+            <Text style={wStyles.secondaryText}>Share this pick</Text>
+          </Pressable>
+          {isSharedPick ? (
+            <Pressable
+              onPress={onSpinOwnPick}
+              style={({ pressed }) => [wStyles.spinOwn, pressed && wStyles.pressed]}
+              accessibilityRole="button"
+            >
+              <Text style={wStyles.spinOwnText}>Spin your own pick</Text>
             </Pressable>
           ) : null}
         </View>
@@ -445,6 +531,7 @@ const wStyles = StyleSheet.create({
     paddingTop: 2,
   },
   actions: { flexDirection: 'row', gap: Spacing.sm },
+  shareActions: { gap: Spacing.sm },
   primary: {
     flex: 1.6,
     alignItems: 'center', justifyContent: 'center',
@@ -461,6 +548,23 @@ const wStyles = StyleSheet.create({
     paddingVertical: Spacing.md - 1,
   },
   secondaryText: { color: Colors.primary, fontSize: FontSizes.lg, fontWeight: '900' },
+  secondaryWide: {
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: Colors.primary,
+    borderRadius: Radii.md,
+    paddingVertical: Spacing.md - 1,
+  },
+  spinOwn: {
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.gold,
+    borderRadius: Radii.md,
+    paddingVertical: Spacing.md,
+  },
+  spinOwnText: {
+    color: Colors.primaryDark,
+    fontSize: FontSizes.lg,
+    fontWeight: '900',
+  },
   // Tertiary: same button shape as secondary, distinguishable but clearly an action
   tertiary: {
     alignItems: 'center', justifyContent: 'center',

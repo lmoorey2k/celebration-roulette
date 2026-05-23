@@ -1496,3 +1496,26 @@ This pass follows v1.6 mechanical tick work. The sound design was complete and a
 - The `SLOT_AUDIO_VERSION` constant in `utils/audio.ts` remains as an internal reference for debugging and rollback decisions. It is no longer displayed in the UI.
 - If future audio tuning passes need a visible testing label, use a separate component prop or state to control visibility rather than hardcoding the label in the JSX.
 - v1.6 is now the stable, UI-clean baseline for future sound design iterations.
+
+---
+
+## 43. Shareable Pick V1 — 2026-05-23
+
+### Starting point
+The app already had generic Open Graph / Twitter metadata in `app/+html.tsx`, but there was no in-app share action and no way to open a shared restaurant pick.
+
+### Changes
+- Added `Share this pick` to the winner card in `app/index.tsx`.
+- Share messages now include the selected restaurant name and a link formatted as `/?pick={restaurantId}`.
+- The home screen now reads the `pick` query param with Expo Router. If it matches a restaurant, the page opens in a shared-pick result state.
+- Shared-pick results reuse the existing winner card, including restaurant logo / fallback initial, name, address, phone, Maps, and website actions.
+- Shared-pick mode changes the eyebrow to `A Celebration dining pick` and adds a prominent `Spin your own pick` action so the recipient can enter the slot-machine flow.
+- Starting a new spin clears the shared-pick state and removes `?pick=...` from the web URL.
+
+### Verification
+- `npx tsc --noEmit` passes with no errors.
+
+### Key invariant for future agents
+- V1 uses generic social preview metadata; restaurant-specific preview cards with logo/name in the message preview would require a backend or dynamic OG image route.
+- The in-app shared landing state should continue to show the restaurant logo when `logo_url` exists.
+- Keep the shared link as an app entry point, not only a restaurant outbound link, so sharing grows app usage while still supporting the concrete restaurant invite.
