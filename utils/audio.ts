@@ -23,6 +23,7 @@ let _streamStopTimer: ReturnType<typeof setTimeout> | null = null;
 // How long after the last sound before we pause the stream element.
 // Must be longer than the longest sound effect (~1s for celebration/sadTrombone).
 const STREAM_IDLE_MS = 2000;
+const IOS_WEB_VOLUME_SCALE = 0.8;
 
 function ensureStream(c: AudioContext): MediaStreamAudioDestinationNode | null {
   if (!_streamDest) {
@@ -60,6 +61,19 @@ function audioOut(c: AudioContext): AudioNode {
   if (!dest) return c.destination;
   kickStream();
   return dest;
+}
+
+function isIOSMobileWeb(): boolean {
+  if (Platform.OS !== 'web') return false;
+  if (typeof navigator === 'undefined') return false;
+
+  const ua = navigator.userAgent ?? '';
+  const touchMac = navigator.platform === 'MacIntel' && (navigator.maxTouchPoints ?? 0) > 1;
+  return /iPhone|iPad|iPod/i.test(ua) || touchMac;
+}
+
+function deviceVolume(value: number): number {
+  return value * (isIOSMobileWeb() ? IOS_WEB_VOLUME_SCALE : 1);
 }
 
 // ─── Sunday detection ────────────────────────────────────────────────────────
@@ -195,7 +209,7 @@ function playWhenReady(play: (c: AudioContext) => void): void {
 
 function masterGain(c: AudioContext, volume: number): GainNode {
   const g = c.createGain();
-  g.gain.value = volume;
+  g.gain.value = deviceVolume(volume);
   g.connect(audioOut(c));
   return g;
 }
@@ -288,7 +302,7 @@ export function playTick(reel = 0, activeReels = 3, slowdown = 0, rampup = 0): v
     const levelByActiveReels: Record<number, number> = { 1: 0.020, 2: 0.052, 3: 0.105 };
     const baseLevel = levelByActiveReels[activeCount] ?? 0.105;
     // Quieter during the startup ramp.
-    const level = baseLevel * (1 - ramp * 0.55);
+    const level = deviceVolume(baseLevel * (1 - ramp * 0.55));
 
     // 1) Wood/metal CONTACT — a tightly band-passed noise burst.
     // The Q-narrowed noise gives the pawl-hitting-cog character; pure oscillators
@@ -358,7 +372,7 @@ export function playReelStop(reel = 0, stopRank = 0, isFinal = false): void {
     thud.type = 'triangle';
     thud.frequency.setValueAtTime(lowFreqs[stopRank] ?? 160, now);
     thud.frequency.exponentialRampToValueAtTime(isFinal ? 42 : 55, now + 0.14);
-    thudGain.gain.setValueAtTime(0.62 * weight, now);
+    thudGain.gain.setValueAtTime(deviceVolume(0.62 * weight), now);
     thudGain.gain.exponentialRampToValueAtTime(0.001, now + (isFinal ? 0.2 : 0.15));
     thud.connect(thudGain);
     thudGain.connect(dest);
@@ -369,7 +383,7 @@ export function playReelStop(reel = 0, stopRank = 0, isFinal = false): void {
     const clickGain = c.createGain();
     click.type = 'square';
     click.frequency.value = highFreqs[reel % highFreqs.length] ?? 3200;
-    clickGain.gain.setValueAtTime(0.18 * weight, now);
+    clickGain.gain.setValueAtTime(deviceVolume(0.18 * weight), now);
     clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.018);
     click.connect(clickGain);
     clickGain.connect(dest);
@@ -382,7 +396,7 @@ export function playReelStop(reel = 0, stopRank = 0, isFinal = false): void {
       latch.type = 'square';
       latch.frequency.value = 1800;
       latchGain.gain.setValueAtTime(0, now + 0.045);
-      latchGain.gain.linearRampToValueAtTime(0.18, now + 0.05);
+      latchGain.gain.linearRampToValueAtTime(deviceVolume(0.18), now + 0.05);
       latchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.095);
       latch.connect(latchGain);
       latchGain.connect(dest);
@@ -404,7 +418,7 @@ export function playWinDing(): void {
       osc.type  = 'sine';
       osc.frequency.value = freq;
       g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.46, t + 0.005);
+      g.gain.linearRampToValueAtTime(deviceVolume(0.46), t + 0.005);
       g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
       osc.connect(g);
       g.connect(dest);
@@ -426,7 +440,7 @@ export function playCelebration(): void {
       osc.type = 'sine';
       osc.frequency.value = freq;
       g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.5, t + 0.01);
+      g.gain.linearRampToValueAtTime(deviceVolume(0.5), t + 0.01);
       g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
       osc.connect(g);
       g.connect(dest);
@@ -442,7 +456,7 @@ export function playCelebration(): void {
       osc.type = 'sine';
       osc.frequency.value = freq;
       g.gain.setValueAtTime(0, chordStart);
-      g.gain.linearRampToValueAtTime(0.34, chordStart + 0.02);
+      g.gain.linearRampToValueAtTime(deviceVolume(0.34), chordStart + 0.02);
       g.gain.exponentialRampToValueAtTime(0.001, chordStart + 0.55);
       osc.connect(g);
       g.connect(dest);
@@ -474,7 +488,7 @@ export function playSadTrombone(): void {
       }
 
       gain.gain.setValueAtTime(0, start);
-      gain.gain.linearRampToValueAtTime(0.32, start + 0.03);
+      gain.gain.linearRampToValueAtTime(deviceVolume(0.32), start + 0.03);
       gain.gain.exponentialRampToValueAtTime(0.001, start + n.dur);
 
       osc.connect(gain);

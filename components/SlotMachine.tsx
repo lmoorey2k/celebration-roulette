@@ -21,6 +21,7 @@ import {
 import { getOddsMultiplier, type Restaurant } from '@/hooks/useRestaurants';
 import { FontSizes, Radii } from '@/constants/theme';
 import { resumeAudio, playLeverPull, playTick, playReelStop, playWinDing } from '@/utils/audio';
+import { startSpinHaptics, type SpinHapticsController } from '@/utils/haptics';
 import { CATEGORIES, type Category } from './CategoryFilter';
 
 const CABINET_IMAGE = require('../assets/images/slot-machine-cabinet.png');
@@ -34,8 +35,6 @@ const DIV_W = 2;
 
 const DURATIONS = [3200, 4600, 6000];
 const ROTATIONS = [12, 15, 18];
-const SPRING_F = 16;
-const SPRING_T = 240;
 const SPIN_PREROLL_MS = 600;
 const SYNTH_STOP_LEAD_MS = 120;
 const RAMPUP_PROGRESS = 0.12;
@@ -78,15 +77,63 @@ const LOGO_OFFSET_Y_BY_ID: Record<number, number> = {
 function getLogoScale(r: Restaurant)  { return LOGO_SCALE_BY_ID[r.id]  ?? 1; }
 function getLogoOffsetY(r: Restaurant){ return LOGO_OFFSET_Y_BY_ID[r.id] ?? 0; }
 
+function pickRandomPoolItem(pool: Restaurant[], excludeIds: Set<number>) {
+  const candidates = pool.filter((restaurant) => !excludeIds.has(restaurant.id));
+  const source = candidates.length > 0 ? candidates : pool;
+  return source[Math.floor(Math.random() * source.length)];
+}
+
 function buildReelData(pool: Restaurant[], winner: Restaurant, rotations: number, offset: number, itemH: number) {
   const items: Restaurant[] = [];
   const preCount = rotations * pool.length;
   for (let i = 0; i < preCount; i++) items.push(pool[(i + offset) % pool.length]);
+
+  const finalTop = pickRandomPoolItem(pool, new Set([winner.id]));
+  const finalBottom = pickRandomPoolItem(pool, new Set([winner.id, finalTop.id]));
+
+  items[items.length - 1] = finalTop;
   const winnerIdx = items.length;
   items.push(winner);
-  for (let i = 0; i < VISIBLE; i++) items.push(pool[(winnerIdx + 1 + i + offset) % pool.length]);
+  items.push(finalBottom);
+  for (let i = 1; i < VISIBLE; i++) items.push(pool[(winnerIdx + 1 + i + offset) % pool.length]);
   const targetY = -(winnerIdx - 1) * itemH;
   return { items, targetY, overshootY: targetY - itemH * 0.2 };
+}
+
+function buildReelMotionProfile(targetY: number, itemH: number, baseDuration: number, stopRank: number) {
+  const hasRebound = Math.random() < 0.5;
+  const rampMs = Math.round(baseDuration * 0.16);
+  const brakeMs = Math.round(baseDuration * 0.3);
+  const reboundMs = hasRebound ? 92 + stopRank * 14 : 0;
+  const settleMs = 132 + stopRank * 18;
+  const cruiseMs = Math.max(420, baseDuration - rampMs - brakeMs);
+  const overshootPx = Math.max(3, itemH * (0.045 + Math.random() * 0.035));
+  const reboundPx = hasRebound ? Math.max(2, overshootPx * (0.18 + Math.random() * 0.16)) : 0;
+
+  return {
+    rampTargetY: targetY * (0.055 + Math.random() * 0.025),
+    cruiseTargetY: targetY * (0.8 + Math.random() * 0.04),
+    brakeTargetY: targetY - overshootPx,
+    reboundTargetY: targetY + reboundPx,
+    rampMs,
+    cruiseMs,
+    brakeMs,
+    reboundMs,
+    settleMs,
+    hasRebound,
+    totalDuration: rampMs + cruiseMs + brakeMs + reboundMs + settleMs,
+  };
+}
+
+function buildVisibleReelItems(pool: Restaurant[], centerRestaurant?: Restaurant | null): Restaurant[][] {
+  if (pool.length === 0) return [[], [], []];
+
+  return Array.from({ length: NUM_REELS }, () => {
+    const center = centerRestaurant ?? pickRandomPoolItem(pool, new Set());
+    const top = pickRandomPoolItem(pool, new Set([center.id]));
+    const bottom = pickRandomPoolItem(pool, new Set([center.id, top.id]));
+    return [top, center, bottom];
+  });
 }
 
 function sameOrder(a: readonly number[] | null, b: readonly number[]) {
@@ -171,6 +218,11 @@ interface Props {
   onSpinComplete: (winner: Restaurant) => void;
   activeCategory: Category;
   onCategoryChange: (cat: Category) => void;
+  displayedPick?: Restaurant | null;
+  emptyState?: {
+    title: string;
+    body: string;
+  } | null;
   /**
    * When true, the next spin is rigged to land on Chick-fil-A (restaurant id 9)
    * if it exists in the current pool. Used for the Sunday Easter egg — looks
@@ -182,7 +234,7 @@ interface Props {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function SlotMachine(
-  { pool, weightedPool, spinning, onSpinStart, onSpinComplete, spinLabel = 'SPIN', activeCategory, onCategoryChange, shouldWinChickFilA = false },
+  { pool, weightedPool, spinning, onSpinStart, onSpinComplete, spinLabel = 'SPIN', activeCategory, onCategoryChange, displayedPick = null, emptyState = null, shouldWinChickFilA = false },
   ref,
 ) {
   // useWindowDimensions returns 0 during Expo static-export SSR hydration and
@@ -225,16 +277,15 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
   const stopSoundTimers = useRef<Array<ReturnType<typeof setTimeout> | null>>([null, null, null]);
   const stopSoundPlayed = useRef([false, false, false]);
   const lastStopOrder = useRef<readonly number[] | null>(null);
+  const spinHaptics = useRef<SpinHapticsController | null>(null);
   // Tracks whether a spin animation is currently in flight. Used to prevent
   // the pool-change reset effect from resetting the reels mid-spin (which
   // happens when the live API response arrives while the reels are spinning).
   const isSpinActiveRef = useRef(false);
 
-  const defaultItems = useCallback((): Restaurant[][] => {
+  const defaultItems = useCallback((centerRestaurant?: Restaurant | null): Restaurant[][] => {
     if (pool.length === 0) return [[], [], []];
-    return Array.from({ length: NUM_REELS }, (_, reel) =>
-      Array.from({ length: VISIBLE + 1 }, (__, item) => pool[(reel + item) % pool.length])
-    );
+    return buildVisibleReelItems(pool, centerRestaurant);
   }, [pool]);
 
   const [reelItems, setReelItems] = useState<Restaurant[][]>(() => defaultItems());
@@ -264,6 +315,10 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
       stopSoundTimers.current[i] = null;
     });
   }, []);
+  const stopSpinHaptics = useCallback(() => {
+    spinHaptics.current?.stop();
+    spinHaptics.current = null;
+  }, []);
 
   // Reset reels when pool / category changes — but NEVER during an active spin.
   // The live API fetch can arrive mid-spin and change poolKey, which would
@@ -271,10 +326,13 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
   useEffect(() => {
     if (isSpinActiveRef.current) return;
     anims.forEach((a) => a.setValue(0));
-    setShowGlow(false); stopGlow(); setReelItems(defaultItems());
-  }, [poolKey, activeCategory, anims, defaultItems, stopGlow]);
+    const centeredPick = displayedPick && pool.some((restaurant) => restaurant.id === displayedPick.id)
+      ? displayedPick
+      : null;
+    setShowGlow(false); stopGlow(); setReelItems(defaultItems(centeredPick));
+  }, [poolKey, activeCategory, displayedPick, anims, defaultItems, stopGlow]);
 
-  useEffect(() => () => { clearAllTicks(); clearStopSoundTimers(); stopGlow(); }, [clearAllTicks, clearStopSoundTimers, stopGlow]);
+  useEffect(() => () => { clearAllTicks(); clearStopSoundTimers(); stopSpinHaptics(); stopGlow(); }, [clearAllTicks, clearStopSoundTimers, stopSpinHaptics, stopGlow]);
 
   const playSpinPressSound = useCallback(() => {
     if (spinning || pool.length < 2) return;
@@ -309,11 +367,15 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
     const data = Array.from({ length: NUM_REELS }, (_, i) =>
       buildReelData(pool, picked, ROTATIONS[profile(i)], i * stride, itemH)
     );
+    const motionProfiles = data.map((reelData, i) =>
+      buildReelMotionProfile(reelData.targetY, itemH, DURATIONS[profile(i)], profile(i))
+    );
 
     anims.forEach((a) => a.setValue(0));
     stopGlow(); setShowGlow(false); setReelItems(data.map((d) => d.items));
     clearAllTicks();
     clearStopSoundTimers();
+    stopSpinHaptics();
     prevB.current = [0, 0, 0];
     stoppedReels.current = 0;
     stopSoundPlayed.current = [false, false, false];
@@ -321,9 +383,9 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
     anims.forEach((anim, reel) => {
       tickIds.current[reel] = anim.addListener(({ value }) => {
         const boundary = Math.floor((Math.abs(value) + tickLeadPx) / itemH);
-        if (boundary !== prevB.current[reel]) {
+        if (boundary > prevB.current[reel]) {
           prevB.current[reel] = boundary;
-          const target = Math.max(itemH, Math.abs(data[reel]?.targetY ?? itemH));
+          const target = Math.max(itemH, Math.abs(motionProfiles[reel]?.brakeTargetY ?? data[reel]?.targetY ?? itemH));
           const progress = Math.min(1, Math.abs(value) / target);
           const slowdown = Math.max(0, Math.min(1, (progress - 0.66) / 0.34));
           const rampup = Math.max(0, Math.min(1, 1 - progress / RAMPUP_PROGRESS));
@@ -333,32 +395,66 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
     });
 
     isSpinActiveRef.current = true;
+    spinHaptics.current = startSpinHaptics(SPIN_PREROLL_MS + Math.max(...motionProfiles.map((profile) => profile.totalDuration)));
     onSpinStart();
 
     let finished = 0;
     data.forEach((reelData, i) => {
       const stopRank = profile(i);
-      const stopAt = Math.max(0, SPIN_PREROLL_MS + DURATIONS[stopRank] - SYNTH_STOP_LEAD_MS);
+      const motion = motionProfiles[i];
+      const stopAt = Math.max(0, SPIN_PREROLL_MS + motion.totalDuration - SYNTH_STOP_LEAD_MS);
       stopSoundTimers.current[i] = setTimeout(() => {
         stopSoundTimers.current[i] = null;
         stopSoundPlayed.current[i] = true;
         playReelStop(i, stopRank, stopRank === NUM_REELS - 1);
+        spinHaptics.current?.pulseStop(stopRank === NUM_REELS - 1);
       }, stopAt);
 
-      // Single smooth deceleration directly to targetY — no overshoot step.
-      // A two-step sequence (overshoot → spring/back-ease) caused misalignment
-      // because: (a) springs don't guarantee an exact landing pixel, and (b) if
-      // the pool updates mid-spin (live API response), the interleaved setValue(0)
-      // call from the reset effect can corrupt the CSS transform before the
-      // animation's completion callback fires. One timing animation always ends
-      // exactly at toValue, and setValue() immediately after is belt-and-braces.
-      Animated.timing(anims[i], {
-        toValue: reelData.targetY,
-        duration: DURATIONS[profile(i)],
-        delay: SPIN_PREROLL_MS,
-        easing: Easing.bezier(0.22, 0.05, 0.25, 1),
-        useNativeDriver: true,
-      }).start(({ finished: ok }) => {
+      // Exact-timed phases keep the physical feel without using springs, so the
+      // final row still lands on the correct pixel every time.
+      const steps = [
+        Animated.timing(anims[i], {
+          toValue: motion.rampTargetY,
+          duration: motion.rampMs,
+          delay: SPIN_PREROLL_MS,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(anims[i], {
+          toValue: motion.cruiseTargetY,
+          duration: motion.cruiseMs,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+        Animated.timing(anims[i], {
+          toValue: motion.brakeTargetY,
+          duration: motion.brakeMs,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ];
+
+      if (motion.hasRebound) {
+        steps.push(
+          Animated.timing(anims[i], {
+            toValue: motion.reboundTargetY,
+            duration: motion.reboundMs,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+        );
+      }
+
+      steps.push(
+        Animated.timing(anims[i], {
+          toValue: reelData.targetY,
+          duration: motion.settleMs,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      );
+
+      Animated.sequence(steps).start(({ finished: ok }) => {
         if (!ok) return;
         anims[i].setValue(reelData.targetY); // snap to exact pixel
         clearReelTick(i);
@@ -368,17 +464,20 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
         }
         stoppedReels.current += 1;
         if (!stopSoundPlayed.current[i]) {
-          playReelStop(i, stopRank, stoppedReels.current === NUM_REELS);
+          const isFinal = stoppedReels.current === NUM_REELS;
+          playReelStop(i, stopRank, isFinal);
+          spinHaptics.current?.pulseStop(isFinal);
         }
         finished += 1;
         if (finished === NUM_REELS) {
           isSpinActiveRef.current = false;
+          stopSpinHaptics();
           setShowGlow(true); startGlow(); playWinDing();
           setTimeout(() => onSpinComplete(picked), 1400);
         }
       });
     });
-  }, [spinning, pool, weightedPool, itemH, anims, clearAllTicks, clearReelTick, onSpinStart, onSpinComplete, startGlow, stopGlow, shouldWinChickFilA]);
+  }, [spinning, pool, weightedPool, itemH, anims, clearAllTicks, clearReelTick, onSpinStart, onSpinComplete, startGlow, stopGlow, stopSpinHaptics, shouldWinChickFilA]);
 
   // Expose triggerSpin so the WinnerCard "Spin Again" button can fire a real spin
   useImperativeHandle(ref, () => ({ triggerSpin: () => handleSpin(true) }), [handleSpin]);
@@ -432,6 +531,17 @@ export const SlotMachine = React.forwardRef<SlotMachineHandle, Props>(function S
           <View pointerEvents="none" style={[styles.payline, { top: itemH, height: itemH }]} />
           <View pointerEvents="none" style={styles.topShade} />
           <View pointerEvents="none" style={styles.bottomShade} />
+
+          {emptyState ? (
+            <View pointerEvents="none" style={styles.emptyState}>
+              <Text style={styles.emptyTitle} numberOfLines={2} adjustsFontSizeToFit>
+                {emptyState.title}
+              </Text>
+              <Text style={styles.emptyBody} numberOfLines={3} adjustsFontSizeToFit>
+                {emptyState.body}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         {/* Invisible lever hit target */}
@@ -484,6 +594,35 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' ? ({ backgroundImage: 'linear-gradient(to top, rgba(0,0,0,0.58), rgba(0,0,0,0.18), rgba(0,0,0,0))' } as any) : { backgroundColor: 'rgba(0,0,0,0.13)' }),
   },
   winGlow: { position: 'absolute', left: 0, right: 0, top: '33.333%', height: '33.333%', backgroundColor: 'rgba(214,239,230,0.65)', zIndex: 3 },
+  emptyState: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    zIndex: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    backgroundColor: 'rgba(255, 248, 236, 0.96)',
+  },
+  emptyTitle: {
+    color: P.greenDark,
+    fontSize: FontSizes.sm,
+    fontWeight: '900',
+    textAlign: 'center',
+    lineHeight: 17,
+    ...(FONT_SANS ? ({ fontFamily: FONT_SANS } as any) : {}),
+  },
+  emptyBody: {
+    color: P.inkSoft,
+    fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'center',
+    lineHeight: 13,
+    marginTop: 3,
+    ...(FONT_SANS ? ({ fontFamily: FONT_SANS } as any) : {}),
+  },
   leverHitArea: { position: 'absolute', backgroundColor: 'transparent' },
   spinButton: {
     position: 'absolute', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18,

@@ -9,6 +9,7 @@ export const CATEGORIES = [
   { key: 'dinner', label: 'Dinner' },
   { key: 'treats', label: 'Treats' },
   { key: 'sip', label: 'Sip' },
+  { key: 'favorites', label: 'Favorites' },
 ] as const;
 
 export type Category = typeof CATEGORIES[number]['key'];

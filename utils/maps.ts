@@ -8,22 +8,28 @@ function isIOSDevice(): boolean {
   return false;
 }
 
-// Opens the restaurant's listing in Maps (ratings, photos, hours) rather than
-// just dropping a pin on an address. Users can navigate from within Maps.
-// On iOS (native or web), uses maps:// so the device's default maps app opens.
+// Opens a turn-by-turn directions intent with the current location implied as
+// the origin. This removes the extra "search/listing first" step for users.
 export function openListing(name: string, address: string): void {
-  const query = encodeURIComponent(`${name} ${address}`);
+  const destination = encodeURIComponent(`${name} ${address}`);
 
   if (isIOSDevice()) {
-    // maps:// opens the user's default maps app on iOS (Apple Maps, Google Maps, Waze, etc.)
-    Linking.openURL(`maps://?q=${query}`);
+    // On iOS, Apple Maps treats daddr as the destination and uses the user's
+    // current location by default when no origin is provided.
+    Linking.openURL(`maps://?daddr=${destination}&dirflg=d`);
   } else {
-    // Google Maps search for Android and desktop web
-    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
+    // Google Maps directions on Android and web with origin left implicit.
+    Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`);
   }
 }
 
 export function openWebsite(url: string): void {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const opened = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!opened) window.location.href = url;
+    return;
+  }
+
   Linking.openURL(url);
 }
 

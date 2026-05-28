@@ -255,8 +255,8 @@ When reviewing the result, check these specifically:
 - Previous issue: when `spinning` changed from `true` to `false`, `SlotMachine.tsx` reset the reels back to the default preview state, causing the winning symbols to disappear.
 - Fix: reel reset now happens only when the restaurant pool or selected category changes, not when the result state appears.
 - The reel spin timing was lengthened for a more satisfying slot-machine feel:
-  - `DURATIONS` changed from `[2100, 3400, 4700]` to `[3200, 4600, 6000]`.
-  - `ROTATIONS` changed from `[9, 11, 13]` to `[12, 15, 18]`.
+- `DURATIONS` changed from `[2100, 3400, 4700]` to `[3200, 4600, 6000]`.
+- `ROTATIONS` changed from `[9, 11, 13]` to `[12, 15, 18]`.
 - Randomized reel stop order remains in place, so the first/second/third reel to lock can vary.
 
 ### Spin button
@@ -638,7 +638,7 @@ Check in browser:
 ## 15. 2026-05-19 — Backend + Frontend deployed to Vercel (public URL)
 
 ### Backend: `celebration-backend`
-- **Path:** `/Users/leemoore/Downloads/celebration-backend/`
+- **Path:** `/Users/leemoore/Library/CloudStorage/Dropbox-Personal/Projects/Code Projects/CelebrationSlotMachine/celebration-backend/`
 - **Framework:** Next.js 14, Pages Router
 - **Live URL:** `https://celebration-backend.vercel.app`
 - **GitHub repo:** `https://github.com/lmoorey2k/celebration-backend`
@@ -652,8 +652,12 @@ Check in browser:
   ```
   Real values live in `celebration-backend/.env.local` (in `.gitignore` — never committed) and in the Vercel project's Environment Variables dashboard.
 - **Key routes:**
-  - `GET /api/restaurants` — returns `{ restaurants: [...] }` from Supabase; Expo app fetches this on mount and falls back to static JSON on failure
+  - `GET /api/restaurants` — returns `{ restaurants: [...] }` from Supabase through the server-side admin client; Expo app fetches this on mount and falls back to static JSON on failure
   - `GET /api/admin` / `POST /api/admin` — admin restaurant management (requires `ADMIN_PASSWORD`)
+- **Database security:**
+  - `public.restaurants` has Row-Level Security enabled.
+  - Direct `anon` / `authenticated` table access is revoked.
+  - Public reads must go through `GET /api/restaurants`; admin writes must go through the server-only routes using `SUPABASE_SECRET_KEY`.
 
 ### Frontend: `Celebration-Roulet` (Expo web)
 - **Path:** `/Users/leemoore/Downloads/Celebration-Roulet/`
@@ -781,7 +785,7 @@ Type-check: npx tsc --noEmit
 
 ### To resume work on the backend (Next.js API):
 ```
-Project: /Users/leemoore/Downloads/celebration-backend/
+Project: /Users/leemoore/Library/CloudStorage/Dropbox-Personal/Projects/Code Projects/CelebrationSlotMachine/celebration-backend/
 Live API: https://celebration-backend.vercel.app
 GitHub: https://github.com/lmoorey2k/celebration-backend
 Deploy: git push origin main → Vercel auto-deploys
@@ -1519,3 +1523,654 @@ The app already had generic Open Graph / Twitter metadata in `app/+html.tsx`, bu
 - V1 uses generic social preview metadata; restaurant-specific preview cards with logo/name in the message preview would require a backend or dynamic OG image route.
 - The in-app shared landing state should continue to show the restaurant logo when `logo_url` exists.
 - Keep the shared link as an app entry point, not only a restaurant outbound link, so sharing grows app usage while still supporting the concrete restaurant invite.
+
+---
+
+## 44. Slot Reel Neighbor Randomization — 2026-05-24
+
+### Starting point
+The winner selection was already weighted-random, but the final visible top and bottom cells in each reel were derived from fixed pool offsets. That made the non-winning rows repeat across spins for the same category.
+
+### Changes
+- Added random final-neighbor selection in `components/SlotMachine.tsx`.
+- The middle payline still lands on the weighted winner.
+- The final top and bottom cells now randomize independently per reel and avoid duplicating the winner / each other when the pool has enough restaurants.
+
+### Verification
+- `npx tsc --noEmit` passes with no errors.
+
+### Deployment
+- Deployed to Vercel production on 2026-05-24.
+- Production URL: `https://celebration-roulette.vercel.app`
+- Deployment URL: `https://celebration-roulette-ejxbg5pd6-lmoorey2ks-projects.vercel.app`
+- Vercel project: `lmoorey2ks-projects/celebration-roulette`
+- The local frontend folder was linked to the existing Vercel project with `npx vercel link --yes --project celebration-roulette`.
+- `vercel link` automatically added `.vercel` to `.gitignore`; do not commit the `.vercel` folder.
+
+---
+
+## 45. Website Link Audit / Chick-fil-A Fix — 2026-05-24
+
+### Starting point
+The `View website` button for Chick-fil-A did not open reliably from the winner card. The app was using the broad root URL `https://chick-fil-a.com` instead of the official Celebration location URL.
+
+### Audit results
+- Live API audit checked 54 restaurant `website_url` values from `https://celebration-backend.vercel.app/api/restaurants`.
+- 51 returned successful HTTP responses or normal redirects.
+- Chick-fil-A failed from the old root URL and was updated.
+- Thai Thani returned 403 in the first scripted fetch but passed a direct HTTP check at `https://thaithanifl.com/`; treat as bot-check noise, not a broken customer link.
+- Upper Crust returns a Cloudflare challenge / 403 to scripted checks at `https://uppercrustpizzacafe.com/`; the URL is listed as the website on Celebration Town Center, but it may be fragile in embedded browsers.
+
+### Changes
+- Updated static fallback data in `data/restaurants.json`: Chick-fil-A now points to `https://www.chick-fil-a.com/locations/fl/celebration`.
+- Updated the live backend record for restaurant id `9` via `PATCH /api/restaurants/9`.
+- Updated `utils/maps.ts` so web uses `window.open(url, '_blank', 'noopener,noreferrer')` with a same-tab fallback; native still uses `Linking.openURL`.
+
+### Verification
+- `npx tsc --noEmit` passes with no errors.
+- Live API confirmed Chick-fil-A now returns the Celebration location URL.
+
+### Remaining review item
+- Consider changing Upper Crust to `https://celebrationtowncenter.com/upper-crust-pizza/` or a Toast ordering/menu URL if users report that `uppercrustpizzacafe.com` gets blocked on mobile.
+
+---
+
+## 46. Winner Card Action Hierarchy — 2026-05-24
+
+### Starting point
+The winner card treated `Open in Maps` as the primary action and also showed a separate `Call` button even though the phone number was already tappable. For Celebration locals, the more important post-pick action is often sharing the pick with someone else.
+
+### Changes
+- Reordered winner-card actions in `app/index.tsx`.
+- `Share this pick` is now the primary full-width green button.
+- Removed the separate `Call` button; the displayed phone number remains tappable.
+- `Open in Maps` and `View website` are now equal secondary outline actions in a compact row.
+- Shared-pick mode still shows `Spin your own pick` below the primary share action.
+
+### Verification
+- `npx tsc --noEmit` passes with no errors.
+
+---
+
+## 47. Visual Winner Share Card — 2026-05-24
+
+### Starting point
+The share action only sent a text message and app link. The desired direction is a more fun, instantly understandable share payload for people who have never seen the app.
+
+### Changes
+- Added web-only generated winner-card image sharing in `app/index.tsx`.
+- The share handler now builds a 1080x1080 branded PNG from an inline SVG and canvas when running on web.
+- The generated card includes:
+  - `CELEBRATION PICK OF THE MOMENT`
+  - restaurant initials in a logo-style badge
+  - restaurant name
+  - address
+  - `Want to go, or spin again?`
+  - app link footer
+- When the browser supports sharing files, `Share this pick` shares the PNG plus text/link through the native share sheet.
+- If file sharing is unavailable or rejected, it falls back to the text/link share.
+- Native/non-web behavior remains text/link sharing through React Native `Share`.
+- Updated share copy to: `Celebration pick of the moment: ... Want to go, or spin again?`
+
+### Verification
+- `npx tsc --noEmit` passes with no errors.
+
+### Known limitation
+- The generated visual uses restaurant initials instead of fetching the restaurant logo to avoid cross-origin image/canvas failures in browser sharing.
+
+---
+
+## 48. Startup / Shared Pick Reel Seeding — 2026-05-24
+
+### Starting point
+The slot machine opened with deterministic reel cells from the beginning of the restaurant pool, so the same logos appeared on every fresh load. Shared `?pick=` links also opened the winner card while the reels still showed the default startup cells, which made the screen feel disconnected from the shared pick.
+
+### Changes
+- Added `displayedPick?: Restaurant | null` to `components/SlotMachine.tsx`.
+- Normal startup/category reset now builds a random visible 3x3 reel grid instead of using `pool[(reel + item) % pool.length]`.
+- Shared-pick mode passes the shared winner into `SlotMachine`.
+- When `displayedPick` is present in the current pool, each reel centers that restaurant on the middle payline with random top/bottom neighbors.
+- Spin behavior and weighted winner selection are unchanged.
+
+### Verification
+- `npx tsc --noEmit` passes with no errors.
+
+### UX note
+- Shared links do not replay a fake spin. They open directly into a settled state with the shared restaurant centered in the reels and the result card visible below.
+
+---
+
+## 49. Cleaner Visual Share Card — 2026-05-24
+
+### Starting point
+The generated visual share card felt too distressed / vintage compared with the clean app UI. The lever knob in the reference direction was red, while the app cabinet uses green. Generic food/reel icons also felt less brand-consistent than Visit Celebration branding.
+
+### Changes
+- Cleaned up the generated SVG share image in `app/index.tsx`.
+- Replaced the textured/poster feel with a white card on a pale green background.
+- Added a text-based Visit Celebration-style lockup with a small bicycle mark at the top.
+- Removed the restaurant-initials badge and generic icon dots.
+- Added a compact clean reel panel using text labels (`VC`, `PICK`, `GO?`) instead of food icons.
+- Updated the lever knob to green with a darker green stroke to match the slot machine cabinet.
+- Kept the restaurant name, address, `Want to go, or spin again?`, and app link footer.
+
+### Verification
+- `npx tsc --noEmit` passes with no errors.
+
+### Known limitation
+- This still uses a text/SVG approximation of the Visit Celebration mark rather than an embedded logo asset, because the repo does not currently contain a standalone Visit Celebration logo file and external images can break canvas-based PNG generation.
+
+---
+
+## 50. iOS Share Text Cleanup — 2026-05-24
+
+### Starting point
+On iPhone, the visual share image was attaching correctly, but Messages displayed the URL twice because the URL was included inside the text body and also passed separately as the Web Share API `url` field.
+
+### Changes
+- Split share copy in `app/index.tsx` into:
+  - `shareText` for Web Share API text, without the URL
+  - `nativeMessage` for non-web fallback, with the URL included
+- Web sharing now passes `text: shareText` and `url` separately so iOS Messages should only render the link once.
+
+### Verification
+- `npx tsc --noEmit` passes with no errors.
+
+---
+
+## 51. iPhone Audio Route Regression Fix — 2026-05-25
+
+### Starting point
+After adding more realistic reel motion, spin haptics, and a requested iPhone volume reduction, iPhone testing reported no audible slot-machine sound.
+
+### Root cause
+The first volume-reduction pass inserted a cached master `GainNode` inside `audioOut(c)`. That changed the carefully documented iOS WebKit route from direct sound nodes into `MediaStreamAudioDestinationNode` to sound nodes into a persistent intermediate output gain. Because this app has a known iOS Safari/WebKit failure mode around Web Audio output routing, the safer fix is to keep `audioOut(c)` shaped exactly like the proven route.
+
+### Changes
+- Restored `audioOut(c)` to return the web `MediaStreamAudioDestinationNode` directly after `ensureStream(c)` and `kickStream()`.
+- Removed the cached `_deviceOutGain` output wrapper.
+- Kept the 20% iPhone/iPad web volume reduction by applying `deviceVolume()` to individual sound gains instead of changing the output graph.
+- The raw `ctx.destination` exception remains limited to `unlockAudio()`, as documented in the earlier iOS audio notes.
+
+### Verification
+- `npx tsc --noEmit` passes with no errors.
+
+### Fallback checkpoint
+Treat this as the known-good audio-restored checkpoint before the next reel-motion tuning pass:
+- Preview URL: `https://celebration-roulette-mqjqohb67-lmoorey2ks-projects.vercel.app`
+- iPhone sound is confirmed working again.
+- Reel-motion v1 values in `components/SlotMachine.tsx`:
+  - `DURATIONS = [3200, 4600, 6000]`
+  - `hasRebound = Math.random() < 0.72`
+  - ramp phase: `baseDuration * 0.12`
+  - brake phase: `baseDuration * 0.24`
+  - overshoot: `itemH * (0.09 + Math.random() * 0.07)`
+  - rebound: `overshootPx * (0.34 + Math.random() * 0.22)`
+  - cruise target: `targetY * (0.84 + Math.random() * 0.04)`
+
+---
+
+## 52. Reel Motion Tuning v2 — 2026-05-25
+
+### Starting point
+The first realistic reel motion pass worked cross-platform but needed a safer tuning checkpoint before further changes. The goal for this pass is to keep the more mechanical feel while making the start and final slowdown more natural on both phone browsers and desktop browsers.
+
+### Changes
+- Tuned only shared reel motion logic in `components/SlotMachine.tsx`.
+- Removed the unused old spring constants left over from the pre-timing implementation.
+- Made acceleration slower by increasing the ramp phase from `12%` to `16%` of each reel's base duration.
+- Made braking more visible by increasing the brake phase from `24%` to `30%`.
+- Reduced the backward/rebound feel:
+  - rebound probability changed from `72%` to `50%`
+  - overshoot changed from roughly `9-16%` of a row to roughly `4.5-8%`
+  - rebound return changed from roughly `34-56%` of overshoot to roughly `18-34%`
+- Moved the cruise handoff earlier, from roughly `84-88%` of the target travel to `80-84%`, giving the brake phase more room to be seen.
+
+### Fallback
+- If this v2 motion feels worse, use the Section 51 fallback checkpoint values above and keep the iPhone audio route fix intact.
+
+### Verification
+- `npx tsc --noEmit` passes with no errors.
+
+---
+
+## 53. Mobile Haptics Tuning — 2026-05-25
+
+### Starting point
+Reel motion v2 feels good enough to keep, so this pass only tunes haptic feedback. The target is subtle spin texture during motion and stronger pulses when each reel stops.
+
+### Platform reality
+- Native iOS/Android builds can use `expo-haptics`.
+- Android mobile browsers can use `navigator.vibrate()`.
+- iPhone Safari / iOS web does not expose real vibration/haptics to normal websites, so Vercel web previews must gracefully no-op there.
+
+### Changes
+- Kept haptics isolated in `utils/haptics.ts`.
+- Added patterned web vibration for reel stops:
+  - non-final stop: `[12, 28, 10]`
+  - final stop: `[18, 36, 24]`
+- Adjusted spin texture pulses so the middle spin is a little tighter and the slowdown phase is slightly heavier.
+- Fired an immediate light pulse at spin start on supported platforms.
+
+### Fallback
+- If Android web vibration feels too buzzy, revert `utils/haptics.ts` to the Section 52 state and keep reel motion v2 unchanged.
+
+### Native app follow-up
+- Do not expect iPhone vibration when testing the Vercel web preview in Safari. iOS web does not expose `navigator.vibrate()` or an equivalent browser haptics API.
+- When building a native iOS app, keep the existing `expo-haptics` path in `utils/haptics.ts`; native iOS can use real `selectionAsync()` / `impactAsync()` feedback.
+- Native testing should tune three moments separately:
+  - spin-start pulse
+  - low-intensity rolling texture during the reel spin
+  - stronger stop/final-win pulses
+- If the app ships as a native Expo/EAS build, retest the current haptic timings on a physical iPhone because native Taptic Engine feedback will feel different from Android web vibration patterns.
+
+---
+
+## 54. Maps Handoff Simplification — 2026-05-25
+
+### Starting point
+The "Let's go" / map action opened a place search/listing first. On iPhone Safari web this still required the browser-to-Maps confirmation prompt, and then users had to take another step inside Maps to begin navigation.
+
+### Changes
+- Updated `utils/maps.ts` so `openListing()` now opens a directions intent instead of a listing/search intent.
+- iOS path now uses `maps://?daddr=...&dirflg=d` so Apple Maps can start from the user's current location by default.
+- Android/web path now uses Google Maps directions via `https://www.google.com/maps/dir/?api=1&destination=...&travelmode=driving`.
+- This applies everywhere the shared helper is used, including result and winner actions.
+
+### Note
+- iPhone Safari web may still show the system confirmation before leaving Safari for Maps. That prompt is a browser security behavior, not an app bug.
+
+---
+
+## 55. Link-Only Share Metadata Proxy — 2026-05-26
+
+### Starting point
+The share sheet could show two images in iMessage because the app shared both a generated PNG file and a URL with Open Graph image metadata. iMessage rendered the direct file attachment and also built a URL preview card.
+
+### Architecture
+- Keep the Expo app as a static export.
+- Add a lightweight Vercel Serverless Function at `api/share/[id].js`.
+- Rewrite `/share/:id` to that function in `vercel.json`.
+- Real users are redirected to `/?pick=:id` so the Expo app opens the shared winner state.
+- Social preview crawlers receive a small HTML document with restaurant-specific Open Graph and Twitter metadata.
+
+### Data lookup
+- The function reads `data/restaurants.json` directly.
+- It finds an active restaurant by numeric `id`.
+- The metadata title and description include the restaurant name.
+
+### Share payload
+- Web share now passes only `title`, `text`, and `url`.
+- The previous generated PNG `files` payload was removed from the active share path.
+- The shared URL is now `/share/:id` instead of `/?pick=:id`.
+
+### Verification
+- Direct function smoke test returned restaurant-specific metadata for Chick-fil-A.
+- `npx tsc --noEmit` passes with no errors.
+
+---
+
+## 55. Favorites Implementation — 2026-05-25
+
+### Product decision
+- Favorites are implemented as a simple device-local feature for now.
+- No account system, backend user table, login flow, or cross-device sync was added.
+- The heart icon is the primary save affordance.
+- "Favorites" now behaves like a spin category/filter alongside All, Breakfast, Lunch, Dinner, Treats, and Sip.
+
+### Changes
+- `hooks/useRestaurants.ts` now stores favorite restaurant IDs in browser `localStorage` under `celebration.favoriteRestaurantIds`.
+- `RestaurantContext` now exposes `favoriteIds`, `favoriteCount`, `isFavorite(id)`, and `toggleFavorite(id)`.
+- `components/CategoryFilter.tsx` now includes the `favorites` category.
+- `app/index.tsx` filters both the visual reel pool and weighted winner pool to favorited restaurants when Favorites is selected.
+- `app/index.tsx` shows the current favorite count in the footer status line.
+- `app/index.tsx` shows a Favorites-specific empty state when no favorite restaurants are available to spin.
+- The winner card in `app/index.tsx` now includes a heart button so a picked restaurant can be saved immediately.
+- `app/list.tsx` supports the Favorites category and filters the dining list to saved restaurants when active.
+- `components/RestaurantCard.tsx` now shows a heart button per restaurant so users can save while browsing the dining list.
+- `app/result.tsx` also received a heart button for consistency with the older result route.
+
+### Behavior notes
+- Favorites persist on the same browser/device across reloads.
+- Favorites do not sync across devices yet.
+- Favoriting an excluded restaurant is allowed, but it will not appear in the spin pool until it is included for the current session.
+- The Favorites category only spins restaurants that are active, wheel-eligible, not session-excluded, and favorited.
+- If fewer than two favorited restaurants are currently in play, the slot machine shows `NO PICKS`, matching the existing minimum-spin behavior.
+
+### Validation
+- `npx tsc --noEmit` passed.
+- Web smoke test passed on local Expo web at `http://localhost:8082`.
+- Verified saving from the dining list, switching to Favorites, saving from the winner card, and persistence after page reload.
+
+### Follow-up candidates
+- Consider whether Favorites should count only restaurants currently in play or all saved restaurants in the footer copy.
+- Later account-based sync can replace or merge this local storage model without changing the visible Favorites interaction.
+
+---
+
+## 56. Vercel Production Deploy — 2026-05-25
+
+### Deployment
+- Deployed the current local `Celebration-Roulet` app to Vercel production with `npx vercel deploy --prod --yes`.
+- Stable public URL: `https://celebration-roulette.vercel.app`
+- Deployment URL: `https://celebration-roulette-puofdq1c9-lmoorey2ks-projects.vercel.app`
+- Vercel inspect URL: `https://vercel.com/lmoorey2ks-projects/celebration-roulette/6GfbPUueLTkA6DucPwA843PVCXCm`
+
+### Validation
+- `npx tsc --noEmit` passed before deploy.
+- `npx expo export -p web` completed locally before deploy and exported to `dist`.
+- Vercel production build completed successfully and aliased the stable URL.
+- Browser smoke test on `https://celebration-roulette.vercel.app` confirmed the app loads, shows the Favorites category, and starts with `0 favorites` for a fresh browser/device.
+
+### Notes
+- The deploy included the current local app state, not only the Favorites files.
+- Favorites are device-local, so each tester will start with their own empty Favorites list in their browser.
+- Expo/Vercel emitted non-blocking warnings about a missing configured favicon asset and package patch versions; neither blocked the build.
+
+---
+
+## 57. Favorites Empty-State Messaging — 2026-05-25
+
+### Checkpoint
+- Created a named git stash checkpoint before this change: `checkpoint before favorites empty-state messaging`.
+- The checkpoint was immediately re-applied so work could continue from the same local state.
+
+### Changes
+- `components/SlotMachine.tsx` now accepts an optional `emptyState` prop and displays a message panel over the reel window when the current category cannot spin.
+- `app/index.tsx` now provides Favorites-specific empty states:
+  - `0 favorites`: `No favorites yet`
+  - `1 favorite`: `Add one more favorite`
+  - `2+ saved but fewer than 2 in play`: `Favorites are out of play`
+- The footer now shows matching guidance copy when Favorites cannot spin.
+- Added two footer actions for the Favorites empty state:
+  - `Browse restaurants` opens the full restaurant list so users can heart places.
+  - `Spin all restaurants` switches the category back to All.
+
+### Behavior notes
+- The machine still requires at least two restaurants in the active pool before it can spin.
+- Empty-state messaging is shown only for Favorites, preserving the prior behavior for other categories.
+- The reel window no longer appears blank when Favorites has no usable spin pool.
+
+### Validation
+- `npx tsc --noEmit` passed.
+- Local browser smoke test on `http://localhost:8083` verified:
+  - zero favorites shows `No favorites yet`
+  - one saved favorite shows `Add one more favorite`
+- `npx expo export -p web` completed and exported to `dist`.
+- Deployed to Vercel production with `npx vercel deploy --prod --yes`.
+- Stable public URL remains `https://celebration-roulette.vercel.app`.
+- Deployment URL: `https://celebration-roulette-cvgwxz2jh-lmoorey2ks-projects.vercel.app`.
+- Browser smoke test on the stable Vercel URL verified the zero-favorites message appears on the Favorites tab.
+
+---
+
+## 58. Dynamic Winner Ticket OG Image — 2026-05-26
+
+### Starting point
+- Route A link-only sharing was already in place, but `/share/:id` still pointed crawlers at the static `public/og-preview.png`.
+- The goal for this pass was a dynamic "Winner's Ticket" share card generated on Vercel from the selected restaurant ID.
+
+### Architecture
+- `api/share/[id].js` now uses `@vercel/og` and exports `config = { runtime: 'edge' }`.
+- `/share/:id` still rewrites to the function via `vercel.json`.
+- Real users are redirected to `/?pick=:id`.
+- Social crawlers receive restaurant-specific Open Graph/Twitter metadata.
+- The image URL is the same share route with `?image=1`, which returns a 600x600 `ImageResponse`.
+
+### Design
+- The image uses the slot machine palette from `components/SlotMachine.tsx`:
+  - green `#0B5B45`
+  - dark green `#063E31`
+  - gold `#CFA14B`
+  - cream `#FFF8EC`
+- The generated card has a deep green gradient, inner gold border, Visit Celebration header, playful 51-places subtitle, off-white winner card, logo, large winner name, and bottom CTA.
+
+### Data and logos
+- The function reads `data/restaurants.json` directly and finds an active restaurant by numeric ID.
+- Current restaurant logos come from `logo_url` remote URLs in the JSON.
+- The resolver also supports future local/public paths like `/logos/example.png` by resolving them against the deployment base URL.
+- If a restaurant has no usable logo path, the generated card falls back to restaurant initials.
+
+### Vercel note
+- Because this is a static Expo export rather than a Next.js app, `package.json` now declares `"type": "module"` so `api/share/[id].js` remains ESM for Vercel Edge packaging.
+- `babel.config.js` was renamed to `babel.config.cjs` so Expo/Babel config remains CommonJS-compatible.
+
+### Verification
+- `npx tsc --noEmit` passed.
+- `npx expo export -p web` passed.
+- Vercel preview deployment completed successfully: `https://celebration-roulette-ntmyxdzgk-lmoorey2ks-projects.vercel.app`.
+- Preview URLs remain protected by Vercel SSO, so public crawler validation should be done on production or an unprotected preview.
+
+### Production deploy for external testing
+- Deployed this dynamic OG image work to Vercel production on 2026-05-26 with `npx vercel deploy --prod --yes`.
+- Stable public URL: `https://celebration-roulette.vercel.app`
+- Production deployment URL: `https://celebration-roulette-9673gc58i-lmoorey2ks-projects.vercel.app`
+- Vercel inspect URL: `https://vercel.com/lmoorey2ks-projects/celebration-roulette/3C7QWPTiJv5jdB2UCd6aAGucGQiN`
+
+### Public route smoke tests
+- `https://celebration-roulette.vercel.app/share/2` returns `302` to `https://celebration-roulette.vercel.app/?pick=2` for normal browser/user-agent requests.
+- `https://celebration-roulette.vercel.app/share/2` returns `200 text/html` for crawler user agents like `facebookexternalhit/1.1`.
+- `https://celebration-roulette.vercel.app/share/2?image=1` returns `200 image/png`.
+- This means external testers should share normal `/share/:id` links or use the app's "Share this pick" button; social/iMessage/Android crawlers should request the metadata and image automatically.
+
+### Tester guidance
+- Ask testers to use the stable production URL, not preview URLs, because Vercel preview deployments are protected by SSO and return `401` to outside crawlers.
+- If iMessage shows an older image, change the restaurant ID or wait for Apple's link-preview cache to refresh.
+- If a specific restaurant logo does not render inside the OG image, check whether its `logo_url` format is supported by `@vercel/og`; the current code falls back only when the logo path is missing, not when a remote image fetch/format fails during rendering.
+
+---
+
+## 59. Reel-Focused Share Preview v2 — 2026-05-26
+
+### Product decision
+- The first dynamic OG image looked good at full size, but message preview cards made the small text hard to read.
+- The share preview should now behave more like a bold app icon / hero graphic: mostly visual, instantly recognizable as the slot machine, and readable at small iMessage/Android/WhatsApp preview sizes.
+
+### Changes
+- Replaced the "Winner's Ticket" dynamic image layout in `api/share/[id].js` with a close-up slot-reel composition.
+- The generated PNG remains 600x600.
+- The image now shows:
+  - deep hunter green gradient background
+  - premium gold slot-window frame
+  - three off-white reel faces
+  - winning restaurant logo centered and larger
+  - adjacent active restaurants on the left/right reels for the alignment effect
+  - one large line of text: `🎉 CELEBRATION'S GREAT PICK`
+- Removed small subtitle/header/footer text from the image itself.
+- The share text/message payload should continue carrying the explanatory copy; the image is now intentionally simple.
+
+### Data behavior
+- The function still looks up the winner by numeric ID from `data/restaurants.json`.
+- Logo resolution now prefers future local logo fields first:
+  - `logoAsset`
+  - `logo_asset`
+  - `logoPath`
+  - `logo_path`
+  - `logo`
+  - `logo_url`
+- Current data still uses remote `logo_url` values, so no local logo download was required for this pass.
+- Left/right reels are deterministic neighbors from the active restaurant list rather than hardcoded restaurants.
+
+### Local logo follow-up
+- For best long-term reliability, add restaurant logo files under `public/logos/` and set `logoAsset` in `data/restaurants.json`.
+- When adding a new restaurant later, also add/check its local logo asset and smoke-test `/share/:id?image=1`.
+- A future audit script should flag restaurants missing `logoAsset` once the project decides to move from remote logos to local assets.
+
+### Verification
+- `npx tsc --noEmit` passed.
+- `npx expo export -p web` passed.
+- Deployed to Vercel production with `npx vercel deploy --prod --yes`.
+- Stable public URL remains `https://celebration-roulette.vercel.app`.
+- Production deployment URL: `https://celebration-roulette-3ls3tlpob-lmoorey2ks-projects.vercel.app`.
+- Vercel inspect URL: `https://vercel.com/lmoorey2ks-projects/celebration-roulette/GzfY6AHQab9prhvFQ4xuUhxtT87S`.
+
+### Public route smoke tests
+- `https://celebration-roulette.vercel.app/share/18` returns `302` to `https://celebration-roulette.vercel.app/?pick=18` for normal user-agent requests.
+- `https://celebration-roulette.vercel.app/share/18` returns `200 text/html` for crawler user agents like `facebookexternalhit/1.1`.
+- `https://celebration-roulette.vercel.app/share/18?image=1` returns `200 image/png`.
+
+### Follow-up fix
+- A production bug caused some direct image URLs to show a broken image icon even though the endpoint returned `200 image/png`.
+- Root cause: `@vercel/og` rejected unsupported CSS in the reel-face styles, specifically `transform: none`, and also warned on `z-index`.
+- Fix: remove `z-index` from the OG template and only emit `transform` when the reel actually needs an X offset.
+- Re-deployed to production on 2026-05-26.
+- Fixed production deployment URL: `https://celebration-roulette-rgn0mf7fm-lmoorey2ks-projects.vercel.app`.
+- Verified the direct image endpoint now returns a real PNG file: `600 x 600`, about `175 KB`.
+
+---
+
+## 60. Single Winner Logo Box Preview v3 — 2026-05-26
+
+### Product decision
+- The reel-focused image was still doing too much for small message previews.
+- New direction: the OG image should only be a premium framed box with the winning restaurant logo inside it.
+- Explanatory copy should live in the share text and metadata, not inside the image itself.
+
+### Changes
+- Replaced the reel composition in `api/share/[id].js` with a single 600x600 logo-box composition.
+- The image now renders:
+  - gold outer field
+  - rounded premium gold frame
+  - silver inner panel
+  - centered winner logo only
+- Removed graphic text from the image.
+- If the logo cannot be used safely, the box falls back to restaurant initials instead of failing the whole render.
+
+### Logo compatibility rule
+- `@vercel/og` handled the current remote `png`, `jpg`, and `jpeg` logo URLs cleanly.
+- `webp` is not reliable in this environment, so the share image now filters unsupported formats and falls back to initials.
+- This keeps the endpoint stable even when a restaurant uses a remote asset format the OG renderer cannot decode.
+
+### Long-term follow-up
+- The cleanest future state is still local logo assets under `public/logos/` plus `logoAsset` in `data/restaurants.json`.
+- Once local assets exist, the image can show logos consistently for every restaurant without depending on third-party formats.
+
+### Verification
+- `npx tsc --noEmit` passed.
+- Deployed to Vercel production with `npx vercel deploy --prod --yes`.
+- Stable public URL remains `https://celebration-roulette.vercel.app`.
+- Production deployment URL: `https://celebration-roulette-z7rb1cymx-lmoorey2ks-projects.vercel.app`.
+- Verified `https://celebration-roulette.vercel.app/share/18?image=1` returns a real `600 x 600` PNG for a JPG-backed logo.
+- Verified `https://celebration-roulette.vercel.app/share/5?image=1` returns a real `600 x 600` PNG for a restaurant whose source logo is `webp`, using the safe fallback path.
+
+---
+
+## 61. Local Logo Library + Real Box Asset — 2026-05-26
+
+### Product decision
+- Initials are not acceptable for the winner share image.
+- The restaurant set is finite, so the correct fix is to own the logo assets locally instead of depending on third-party image formats at render time.
+- The OG image should use the user's actual gold box art, not a recreated approximation.
+
+### Root cause of the old failures
+- Restaurants were not missing logo URLs.
+- The actual issue was remote logo format compatibility in `@vercel/og`.
+- Current source mix from `data/restaurants.json` was:
+  - `25` png
+  - `20` jpg
+  - `6` webp
+  - `3` avif
+- The problematic restaurants were the `webp` and `avif` cases, which made the share generator fragile when it tried to render third-party assets directly.
+
+### Changes
+- Added the user-supplied box art to `public/share-assets/winner-box.png`.
+- Added a local normalized PNG logo library for all `54` restaurants under `public/logos/`.
+- Updated every restaurant in `data/restaurants.json` to include `logoAsset`, e.g. `/logos/05.png`.
+- The local logo generation pipeline converted remote logos to PNG:
+  - `sharp` handled png/jpg/webp and most avif
+  - macOS Quick Look (`qlmanage`) was used as a fallback for at least one stubborn avif source
+- Updated `api/share/[id].js` so the share image now uses:
+  - local box asset
+  - local `logoAsset` first
+  - portrait OG dimensions matching the provided frame asset: `1024 x 1536`
+
+### Result
+- The share image no longer depends on remote `webp` / `avif` support at runtime.
+- Restaurants that previously would have needed initials now render from local PNG files.
+- This is now the durable asset architecture for the winner preview.
+
+### Maintenance rule
+- When adding a restaurant later:
+  - add its logo to `public/logos/`
+  - set `logoAsset` in `data/restaurants.json`
+  - verify `/share/:id?image=1`
+- Keep `logo_url` if useful for app data provenance, but the OG share image should rely on `logoAsset`.
+
+### Verification
+- `npx tsc --noEmit` passed.
+- Deployed to Vercel production with `npx vercel deploy --prod --yes`.
+- Stable public URL remains `https://celebration-roulette.vercel.app`.
+- Production deployment URL: `https://celebration-roulette-emx6gw7jy-lmoorey2ks-projects.vercel.app`.
+- Verified `https://celebration-roulette.vercel.app/share/5?image=1` returns a real `1024 x 1536` PNG for a restaurant that originally used `webp`.
+- Verified `https://celebration-roulette.vercel.app/share/1?image=1` returns a real `1024 x 1536` PNG for a restaurant that originally used `avif`.
+
+---
+
+## 62. Logo-Only Share Preview v4 — 2026-05-26
+
+### Product decision
+- The framed box treatment was still too visually heavy.
+- New direction: use only the winner logo in the OG image, with a clean neutral background and no large decorative border.
+- The invitation copy should live in the share text and metadata, not in the image itself.
+
+### Changes
+- Updated `api/share/[id].js` to render a simple logo-only image.
+- Switched the OG image size to `1200 x 1200` for cleaner cross-app preview behavior.
+- Updated metadata copy to:
+  - title: `Join me at {Restaurant Name}`
+  - description: `You found a great place to dine in Celebration. Join me at {Restaurant Name}.`
+- Updated `app/index.tsx` share-sheet copy to match the same wording.
+
+### Verification
+- `npx tsc --noEmit` passed.
+- Deployed to Vercel production with `npx vercel deploy --prod --yes`.
+- Stable public URL remains `https://celebration-roulette.vercel.app`.
+- Production deployment URL: `https://celebration-roulette-lgl6ngt87-lmoorey2ks-projects.vercel.app`.
+- Verified `https://celebration-roulette.vercel.app/share/5?image=1` returns a real `1200 x 1200` PNG.
+- Verified crawler metadata for `/share/5` now uses the updated invitation title and description.
+
+---
+
+## 63. Supabase RLS Security Fix — 2026-05-27
+
+### Trigger
+- Supabase emailed a critical `rls_disabled_in_public` warning for project `celebration-roulet` / `dvwobegxzbekbhdbnnoj`.
+- The warning said a public table could be read, edited, and deleted because Row-Level Security was not enabled.
+- The affected table was the live `public.restaurants` data used by `celebration-backend`.
+
+### Backend change
+- Updated `celebration-backend/pages/api/restaurants/index.ts`.
+- Public `GET /api/restaurants` now uses `supabaseAdmin` instead of the publishable-key Supabase client.
+- This keeps the public app API working after direct publishable-key table access is blocked.
+
+### Database change
+- Added backend migration:
+  - `celebration-backend/supabase/migrations/20260527000000_enable_restaurants_rls.sql`
+- Applied the SQL in the Supabase dashboard SQL Editor for project `dvwobegxzbekbhdbnnoj`.
+- The migration:
+  - enables Row-Level Security on `public.restaurants`
+  - forces Row-Level Security
+  - revokes all direct table privileges from `anon`
+  - revokes all direct table privileges from `authenticated`
+  - grants table access to `service_role`
+
+### Deployment
+- Backend commit: `7f6cb22` (`Lock down Supabase restaurant table access`)
+- Pushed to `main` on `https://github.com/lmoorey2k/celebration-backend`.
+- Vercel production deployment is expected through the GitHub-connected backend project.
+
+### Verification
+- `npm run build` passed in `celebration-backend`.
+- Direct Supabase REST call with `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` now returns `401 permission denied` for `public.restaurants`.
+- Public backend API still works:
+  - `https://celebration-backend.vercel.app/api/restaurants`
+  - status `200`
+  - returns `54` restaurants
+- Supabase Security Advisor shows:
+  - `0 errors`
+  - `0 warnings`
+
+### Security rule going forward
+- Do not add broad `anon` or `authenticated` policies on `public.restaurants`.
+- Public restaurant reads should continue to go through `GET /api/restaurants`.
+- Admin inserts/updates should continue to use server-only API routes with `SUPABASE_SECRET_KEY`.

@@ -17,7 +17,7 @@ import { Colors, FontSizes, Radii, Shadow, Spacing } from '@/constants/theme';
 export default function ResultScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { restaurants, spinPool } = useRestaurantContext();
+  const { restaurants, spinPool, isFavorite, toggleFavorite } = useRestaurantContext();
 
   const restaurant = restaurants.find((r) => r.id === Number(id));
 
@@ -63,6 +63,18 @@ export default function ResultScreen() {
         </View>
 
         <View style={styles.card}>
+          <Pressable
+            onPress={() => toggleFavorite(restaurant.id)}
+            style={[styles.favoriteButton, isFavorite(restaurant.id) && styles.favoriteButtonActive]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isFavorite(restaurant.id) }}
+            accessibilityLabel={`${isFavorite(restaurant.id) ? 'Remove' : 'Add'} ${restaurant.name} ${isFavorite(restaurant.id) ? 'from' : 'to'} favorites`}
+            hitSlop={8}
+          >
+            <Text style={[styles.favoriteIcon, isFavorite(restaurant.id) && styles.favoriteIconActive]}>
+              {isFavorite(restaurant.id) ? '♥' : '♡'}
+            </Text>
+          </Pressable>
           <Text style={styles.restaurantName}>{restaurant.name}</Text>
           <Text style={styles.address}>{restaurant.address}</Text>
         </View>
@@ -150,6 +162,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
     ...Shadow.card,
+  },
+  favoriteButton: {
+    position: 'absolute',
+    top: Spacing.md,
+    right: Spacing.md,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  favoriteButtonActive: {
+    backgroundColor: '#FFF3F5',
+    borderColor: '#D84A5F',
+  },
+  favoriteIcon: {
+    color: Colors.textMuted,
+    fontSize: 26,
+    fontWeight: '800',
+    lineHeight: 28,
+  },
+  favoriteIconActive: {
+    color: '#D84A5F',
   },
   restaurantName: {
     fontSize: FontSizes.xxl,

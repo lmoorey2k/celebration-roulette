@@ -6,6 +6,10 @@ interface RestaurantContextValue {
   restaurants: Restaurant[];
   spinPool: Restaurant[];
   weightedPool: Restaurant[];
+  favoriteIds: number[];
+  favoriteCount: number;
+  isFavorite: (id: number) => boolean;
+  toggleFavorite: (id: number) => void;
   toggleSessionExclusion: (id: number) => void;
   resetSession: () => void;
 }

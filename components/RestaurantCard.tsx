@@ -6,9 +6,11 @@ import { Colors, FontSizes, Radii, Shadow, Spacing } from '@/constants/theme';
 interface Props {
   restaurant: Restaurant;
   onToggle: (id: number) => void;
+  isFavorite: boolean;
+  onToggleFavorite: (id: number) => void;
 }
 
-export function RestaurantCard({ restaurant, onToggle }: Props) {
+export function RestaurantCard({ restaurant, onToggle, isFavorite, onToggleFavorite }: Props) {
   const excluded = restaurant.session_excluded;
 
   return (
@@ -27,6 +29,18 @@ export function RestaurantCard({ restaurant, onToggle }: Props) {
           {restaurant.address}
         </Text>
       </View>
+      <Pressable
+        style={[styles.favorite, isFavorite && styles.favoriteActive]}
+        onPress={() => onToggleFavorite(restaurant.id)}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isFavorite }}
+        accessibilityLabel={`${isFavorite ? 'Remove' : 'Add'} ${restaurant.name} ${isFavorite ? 'from' : 'to'} favorites`}
+        hitSlop={8}
+      >
+        <Text style={[styles.favoriteText, isFavorite && styles.favoriteTextActive]}>
+          {isFavorite ? '♥' : '♡'}
+        </Text>
+      </Pressable>
       <Pressable
         style={[styles.toggle, excluded && styles.toggleExcluded]}
         onPress={() => onToggle(restaurant.id)}
@@ -77,6 +91,30 @@ const styles = StyleSheet.create({
   },
   addressExcluded: {
     color: Colors.excluded,
+  },
+  favorite: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm,
+  },
+  favoriteActive: {
+    backgroundColor: '#FFF3F5',
+    borderColor: '#D84A5F',
+  },
+  favoriteText: {
+    color: Colors.textMuted,
+    fontSize: 22,
+    fontWeight: '800',
+    lineHeight: 24,
+  },
+  favoriteTextActive: {
+    color: '#D84A5F',
   },
   toggle: {
     backgroundColor: Colors.primary,

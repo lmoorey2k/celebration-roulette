@@ -22,7 +22,8 @@
         "dinner"
       ],
       "phone": "689-303-1043",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/01.png"
     },
     {
       "id": 2,
@@ -41,7 +42,8 @@
         "dinner"
       ],
       "phone": "407-580-9327",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/02.png"
     },
     {
       "id": 3,
@@ -60,7 +62,8 @@
         "dinner"
       ],
       "phone": "407-566-1212",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/03.png"
     },
     {
       "id": 4,
@@ -79,7 +82,8 @@
         "dinner"
       ],
       "phone": "407-802-7004",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/04.png"
     },
     {
       "id": 5,
@@ -98,7 +102,8 @@
         "dinner"
       ],
       "phone": "321-219-2822",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/05.png"
     },
     {
       "id": 6,
@@ -118,7 +123,8 @@
         "sip"
       ],
       "phone": "407-566-2337",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/06.png"
     },
     {
       "id": 7,
@@ -138,7 +144,8 @@
         "sip"
       ],
       "phone": "407-566-2526",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/07.png"
     },
     {
       "id": 8,
@@ -157,13 +164,14 @@
         "sip"
       ],
       "phone": "407-271-9145",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/08.png"
     },
     {
       "id": 9,
       "name": "Chick-fil-A",
       "address": "6050 W Irlo Bronson Memorial Hwy, Celebration, FL 34747",
-      "website_url": "https://chick-fil-a.com",
+      "website_url": "https://www.chick-fil-a.com/locations/fl/celebration",
       "source_url": "https://visitcelebration.org/food-drink/",
       "logo_url": "https://visitcelebration.org/wp-content/uploads/2025/08/Chick-fil-A-logo-scaled.png",
       "active": true,
@@ -177,7 +185,8 @@
         "dinner"
       ],
       "phone": "407-566-9808",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/09.png"
     },
     {
       "id": 10,
@@ -196,7 +205,8 @@
         "dinner"
       ],
       "phone": "321-939-2059",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/10.png"
     },
     {
       "id": 11,
@@ -214,7 +224,8 @@
         "treats"
       ],
       "phone": "407-566-8651",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/11.png"
     },
     {
       "id": 12,
@@ -233,7 +244,8 @@
         "dinner"
       ],
       "phone": "407-566-1505",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/12.png"
     },
     {
       "id": 13,
@@ -252,7 +264,8 @@
         "dinner"
       ],
       "phone": "321-939-8990",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/13.png"
     },
     {
       "id": 14,
@@ -271,7 +284,8 @@
         "dinner"
       ],
       "phone": "617-990-2152",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/14.png"
     },
     {
       "id": 15,
@@ -290,7 +304,8 @@
         "lunch"
       ],
       "phone": "407-566-8696",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/15.png"
     },
     {
       "id": 16,
@@ -310,7 +325,8 @@
         "treats"
       ],
       "phone": "407-507-1509",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/16.png"
     },
     {
       "id": 17,
@@ -329,7 +345,8 @@
         "dinner"
       ],
       "phone": "407-566-0100",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/17.png"
     },
     {
       "id": 18,
@@ -348,7 +365,8 @@
         "dinner"
       ],
       "phone": "407-566-8860",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/18.png"
     },
     {
       "id": 19,
@@ -368,7 +386,8 @@
         "treats"
       ],
       "phone": "321-939-1198",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/19.png"
     },
     {
       "id": 20,
@@ -387,7 +406,8 @@
         "lunch"
       ],
       "phone": "407-566-8887",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/20.png"
     },
     {
       "id": 21,
@@ -406,7 +426,8 @@
         "lunch"
       ],
       "phone": "321-939-4396",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/21.png"
     },
     {
       "id": 22,
@@ -424,7 +445,8 @@
         "treats"
       ],
       "phone": "321-939-45412",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/22.png"
     },
     {
       "id": 23,
@@ -443,7 +465,8 @@
         "dinner"
       ],
       "phone": "732-948-9223",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/23.png"
     },
     {
       "id": 24,
@@ -461,7 +484,8 @@
         "treats"
       ],
       "phone": "407-566-8555",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/24.png"
     },
     {
       "id": 25,
@@ -480,7 +504,8 @@
         "sip"
       ],
       "phone": "",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/25.png"
     },
     {
       "id": 26,
@@ -500,7 +525,8 @@
         "dinner"
       ],
       "phone": "407-566-6000",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/26.png"
     },
     {
       "id": 27,
@@ -519,7 +545,8 @@
         "dinner"
       ],
       "phone": "321-939-2462",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/27.png"
     },
     {
       "id": 28,
@@ -537,7 +564,8 @@
         "treats"
       ],
       "phone": "321-525-0289",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/28.png"
     },
     {
       "id": 29,
@@ -556,7 +584,8 @@
         "dinner"
       ],
       "phone": "407-566-4736",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/29.png"
     },
     {
       "id": 30,
@@ -575,7 +604,8 @@
         "sip"
       ],
       "phone": "407-408-9264",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/30.png"
     },
     {
       "id": 31,
@@ -594,7 +624,8 @@
         "lunch"
       ],
       "phone": "321-939-1311",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/31.png"
     },
     {
       "id": 32,
@@ -614,7 +645,8 @@
         "dinner"
       ],
       "phone": "321-939-4152",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/32.png"
     },
     {
       "id": 33,
@@ -634,7 +666,8 @@
         "sip"
       ],
       "phone": "407-566-0501",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/33.png"
     },
     {
       "id": 34,
@@ -653,7 +686,8 @@
         "lunch"
       ],
       "phone": "321-939-1226",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/34.png"
     },
     {
       "id": 35,
@@ -672,7 +706,8 @@
         "lunch"
       ],
       "phone": "301-643-0233",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/35.png"
     },
     {
       "id": 36,
@@ -691,7 +726,8 @@
         "dinner"
       ],
       "phone": "239-220-3085",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/36.png"
     },
     {
       "id": 37,
@@ -710,7 +746,8 @@
         "dinner"
       ],
       "phone": "321-939-4394",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/37.png"
     },
     {
       "id": 38,
@@ -729,7 +766,8 @@
         "dinner"
       ],
       "phone": "407-257-5938",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/38.png"
     },
     {
       "id": 39,
@@ -748,7 +786,8 @@
         "dinner"
       ],
       "phone": "321-939-1258",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/39.png"
     },
     {
       "id": 40,
@@ -767,7 +806,8 @@
         "dinner"
       ],
       "phone": "321-939-3100",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/40.png"
     },
     {
       "id": 41,
@@ -786,7 +826,8 @@
         "dinner"
       ],
       "phone": "321-378-8080",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/41.png"
     },
     {
       "id": 42,
@@ -804,7 +845,8 @@
         "treats"
       ],
       "phone": "828-980-4999",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/42.png"
     },
     {
       "id": 43,
@@ -823,7 +865,8 @@
         "dinner"
       ],
       "phone": "321-408-7415",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/43.png"
     },
     {
       "id": 44,
@@ -842,7 +885,8 @@
         "dinner"
       ],
       "phone": "407-715-2596",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/44.png"
     },
     {
       "id": 45,
@@ -861,7 +905,8 @@
         "sip"
       ],
       "phone": "321-939-3200",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/45.png"
     },
     {
       "id": 46,
@@ -880,7 +925,8 @@
         "dinner"
       ],
       "phone": "321-939-0400",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/46.png"
     },
     {
       "id": 47,
@@ -899,7 +945,8 @@
         "dinner"
       ],
       "phone": "407-902-7461",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/47.png"
     },
     {
       "id": 48,
@@ -918,7 +965,8 @@
         "dinner"
       ],
       "phone": "321-404-7350",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/48.png"
     },
     {
       "id": 49,
@@ -938,7 +986,8 @@
         "treats"
       ],
       "phone": "321-939-4416",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/49.png"
     },
     {
       "id": 50,
@@ -958,7 +1007,8 @@
         "dinner"
       ],
       "phone": "407-964-3258",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/50.png"
     },
     {
       "id": 51,
@@ -976,7 +1026,8 @@
         "sip"
       ],
       "phone": "407-693-2661",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/51.png"
     },
     {
       "id": 52,
@@ -995,7 +1046,8 @@
         "sip"
       ],
       "phone": "407-566-8636",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/52.png"
     },
     {
       "id": 53,
@@ -1014,7 +1066,8 @@
         "dinner"
       ],
       "phone": "407-566-1221",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/53.png"
     },
     {
       "id": 54,
@@ -1034,7 +1087,8 @@
         "dinner"
       ],
       "phone": "407-566-4653",
-      "menu_url": ""
+      "menu_url": "",
+      "logoAsset": "/logos/54.png"
     }
   ]
 }

@@ -16,7 +16,7 @@ import { Colors, FontSizes, Radii, Spacing } from '@/constants/theme';
 
 export default function ListScreen() {
   const router = useRouter();
-  const { restaurants, spinPool, toggleSessionExclusion, resetSession } =
+  const { restaurants, spinPool, favoriteIds, isFavorite, toggleFavorite, toggleSessionExclusion, resetSession } =
     useRestaurantContext();
   const [query, setQuery] = useState('');
 
@@ -35,20 +35,25 @@ export default function ListScreen() {
 
     // Apply the same strict category filter as the machine:
     // only show restaurants explicitly tagged with this meal period.
-    if (activeCategory !== 'all') {
+    if (activeCategory === 'favorites') {
+      base = base.filter((r) => favoriteIds.includes(r.id));
+    } else if (activeCategory !== 'all') {
       base = base.filter((r) => r.categories?.includes(activeCategory));
     }
 
     if (!query.trim()) return base;
     const q = query.toLowerCase();
     return base.filter((r) => r.name.toLowerCase().includes(q));
-  }, [restaurants, query, activeCategory]);
+  }, [restaurants, query, activeCategory, favoriteIds]);
 
   // Count of spin-eligible restaurants for this category (matches the machine).
   const categorySpinCount = useMemo(() => {
     if (activeCategory === 'all') return spinPool.length;
+    if (activeCategory === 'favorites') {
+      return spinPool.filter((r) => favoriteIds.includes(r.id)).length;
+    }
     return spinPool.filter((r) => r.categories?.includes(activeCategory)).length;
-  }, [spinPool, activeCategory]);
+  }, [spinPool, activeCategory, favoriteIds]);
 
   const excludedCount = visible.filter((r) => r.session_excluded).length;
 
@@ -88,12 +93,21 @@ export default function ListScreen() {
           data={visible}
           keyExtractor={(r) => String(r.id)}
           renderItem={({ item }) => (
-            <RestaurantCard restaurant={item} onToggle={toggleSessionExclusion} />
+            <RestaurantCard
+              restaurant={item}
+              onToggle={toggleSessionExclusion}
+              isFavorite={isFavorite(item.id)}
+              onToggleFavorite={toggleFavorite}
+            />
           )}
           contentContainerStyle={styles.list}
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No restaurants match your search.</Text>
+            <Text style={styles.emptyText}>
+              {activeCategory === 'favorites'
+                ? 'Heart a few restaurants to build your Favorites list.'
+                : 'No restaurants match your search.'}
+            </Text>
           }
         />
 

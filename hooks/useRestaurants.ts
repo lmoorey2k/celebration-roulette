@@ -21,6 +21,7 @@ export interface Restaurant {
 
 // API endpoint — update this after deploying to Vercel
 const API_URL = process.env.EXPO_PUBLIC_API_URL || '';
+const FAVORITES_STORAGE_KEY = 'celebration.favoriteRestaurantIds';
 
 // Admin odds tier -> internal multiplier for winner selection.
 // Existing data stays compatible: 1 is still Normal, 4 is still Hot Pick,
@@ -56,8 +57,33 @@ function hydrateFromLocal(): Restaurant[] {
   return hydrate((rawData.restaurants as any[]));
 }
 
+function readStoredFavoriteIds(): number[] {
+  if (typeof window === 'undefined' || !window.localStorage) return [];
+
+  try {
+    const stored = window.localStorage.getItem(FAVORITES_STORAGE_KEY);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((id): id is number => Number.isInteger(id));
+  } catch {
+    return [];
+  }
+}
+
+function storeFavoriteIds(ids: number[]) {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+
+  try {
+    window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(ids));
+  } catch {
+    // Favorites remain usable for the current session if browser storage fails.
+  }
+}
+
 export function useRestaurants() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>(hydrateFromLocal);
+  const [favoriteIds, setFavoriteIds] = useState<number[]>(readStoredFavoriteIds);
   const [loadedFromApi, setLoadedFromApi] = useState(false);
 
   // Fetch from live API on mount; fall back to static JSON if unavailable
@@ -88,6 +114,21 @@ export function useRestaurants() {
     setRestaurants(prev => prev.map(r => ({ ...r, session_excluded: r.default_excluded })));
   }, []);
 
+  useEffect(() => {
+    storeFavoriteIds(favoriteIds);
+  }, [favoriteIds]);
+
+  const isFavorite = useCallback((id: number) => favoriteIds.includes(id), [favoriteIds]);
+
+  const toggleFavorite = useCallback((id: number) => {
+    setFavoriteIds((prev) => {
+      const next = prev.includes(id)
+        ? prev.filter((favoriteId) => favoriteId !== id)
+        : [...prev, id];
+      return next.sort((a, b) => a - b);
+    });
+  }, []);
+
   // spinPool — unique list of eligible restaurants (for reel visuals & UI counts)
   const spinPool = useMemo(() => {
     return restaurants.filter(
@@ -102,5 +143,16 @@ export function useRestaurants() {
     return spinPool;
   }, [spinPool]);
 
-  return { restaurants, spinPool, weightedPool, toggleSessionExclusion, resetSession, loadedFromApi };
+  return {
+    restaurants,
+    spinPool,
+    weightedPool,
+    favoriteIds,
+    favoriteCount: favoriteIds.length,
+    isFavorite,
+    toggleFavorite,
+    toggleSessionExclusion,
+    resetSession,
+    loadedFromApi,
+  };
 }

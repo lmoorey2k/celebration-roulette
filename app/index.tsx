@@ -45,7 +45,7 @@ function isSundayOrForced(): boolean {
 
 function sharedPickUrl(restaurantId: number): string {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    return `${window.location.origin}/?pick=${restaurantId}`;
+    return `${window.location.origin}/share/${restaurantId}`;
   }
 
   return ExpoLinking.createURL('/', { queryParams: { pick: String(restaurantId) } });
@@ -53,12 +53,23 @@ function sharedPickUrl(restaurantId: number): string {
 
 async function shareRestaurantPick(restaurant: Restaurant) {
   const url = sharedPickUrl(restaurant.id);
-  const message = `The Celebration Restaurant Roller picked ${restaurant.name} for us.\n\nWant to go, or spin your own pick?\n${url}`;
+  const shareText = `You found a great place to dine in Celebration.\n\nJoin me at ${restaurant.name}.`;
+  const nativeMessage = `${shareText}\n${url}`;
+  const shareTitle = `Join me at ${restaurant.name}`;
 
   try {
+    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.share) {
+      await navigator.share({
+        title: shareTitle,
+        text: shareText,
+        url,
+      });
+      return;
+    }
+
     await Share.share({
-      title: `Celebration pick: ${restaurant.name}`,
-      message,
+      title: shareTitle,
+      message: nativeMessage,
       url,
     });
   } catch {
@@ -78,7 +89,7 @@ function clearSharedPickParam() {
 export default function HomeScreen() {
   const router   = useRouter();
   const { pick } = useLocalSearchParams<{ pick?: string }>();
-  const { restaurants, spinPool, weightedPool } = useRestaurantContext();
+  const { restaurants, spinPool, weightedPool, favoriteIds, favoriteCount, isFavorite, toggleFavorite } = useRestaurantContext();
   const [spinState, setSpinState] = useState<SpinState>('idle');
   const [winner,    setWinner]    = useState<Restaurant | null>(null);
   const [hasCompletedSpin, setHasCompletedSpin] = useState(false);
@@ -90,36 +101,70 @@ export default function HomeScreen() {
   // each visitor gets one rigged win, then normal random behaviour resumes.
   const [sundayFirstSpinDone, setSundayFirstSpinDone] = useState(false);
 
-  // Should the next spin be rigged to land on Chick-fil-A?
-  // Only on Sunday, only if it hasn't already happened this session,
-  // and only if Chick-fil-A is actually in the current filtered pool.
-  const shouldWinChickFilA =
-    isSundayOrForced() &&
-    !sundayFirstSpinDone &&
-    spinPool.some((r) => r.id === CHICK_FIL_A_ID);
-
   const scrollRef = useRef<ScrollView>(null);
   const slotRef   = useRef<SlotMachineHandle>(null);
   const appliedSharedPickRef = useRef<string | null>(null);
 
   const filteredPool = useMemo(() => {
     if (activeCategory === 'all') return spinPool;
+    if (activeCategory === 'favorites') {
+      return spinPool.filter((r) => favoriteIds.includes(r.id));
+    }
     // Strict tag match: only show restaurants explicitly tagged with this category.
     // A restaurant tagged breakfast+lunch should NOT appear in dinner.
     // Restaurants with no tags are excluded from all filtered categories
     // (they only appear in "All") to avoid polluting specific meal filters.
     return spinPool.filter((r) => r.categories?.includes(activeCategory));
-  }, [spinPool, activeCategory]);
+  }, [spinPool, activeCategory, favoriteIds]);
 
   // Weighted version of the filtered pool — used only for picking the winner.
   const filteredWeightedPool = useMemo(() => {
     if (activeCategory === 'all') return weightedPool;
+    if (activeCategory === 'favorites') {
+      return weightedPool.filter((r) => favoriteIds.includes(r.id));
+    }
     return weightedPool.filter((r) => r.categories?.includes(activeCategory));
-  }, [weightedPool, activeCategory]);
+  }, [weightedPool, activeCategory, favoriteIds]);
+
+  // Should the next spin be rigged to land on Chick-fil-A?
+  // Only on Sunday, only if it hasn't already happened this session,
+  // and only if Chick-fil-A is actually in the current filtered pool.
+  const shouldWinChickFilA =
+    isSundayOrForced() &&
+    !sundayFirstSpinDone &&
+    filteredPool.some((r) => r.id === CHICK_FIL_A_ID);
 
   const activeLabel = activeCategory === 'all'
     ? 'All dining'
-    : activeCategory[0].toUpperCase() + activeCategory.slice(1);
+    : activeCategory === 'favorites'
+      ? 'Favorites'
+      : activeCategory[0].toUpperCase() + activeCategory.slice(1);
+
+  const favoritesEmptyState = useMemo(() => {
+    if (activeCategory !== 'favorites' || filteredPool.length >= 2) return null;
+
+    if (favoriteCount === 0) {
+      return {
+        title: 'No favorites yet',
+        body: 'Heart restaurants from the list or from a winning pick.',
+        footer: 'Heart a few restaurants to build your Favorites reel.',
+      };
+    }
+
+    if (favoriteCount === 1) {
+      return {
+        title: 'Add one more favorite',
+        body: 'Save at least two restaurants to spin your shortlist.',
+        footer: 'You have 1 favorite. Add one more restaurant to spin Favorites.',
+      };
+    }
+
+    return {
+      title: 'Favorites are out of play',
+      body: 'Include at least two saved restaurants for this session.',
+      footer: 'Your saved restaurants are currently excluded from the spin pool.',
+    };
+  }, [activeCategory, favoriteCount, filteredPool.length]);
 
   const handleSpinStart = useCallback(() => {
     setSpinState('spinning');
@@ -130,11 +175,11 @@ export default function HomeScreen() {
     resumeAudio();
     // If this spin is the rigged Sunday Chick-fil-A spin, mark it as used now
     // so subsequent spins return to normal random behaviour.
-    if (isSundayOrForced() && !sundayFirstSpinDone) {
+    if (shouldWinChickFilA) {
       setSundayFirstSpinDone(true);
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-  }, [sundayFirstSpinDone]);
+  }, [shouldWinChickFilA]);
 
   const handleSpinComplete = useCallback((restaurant: Restaurant) => {
     setWinner(restaurant);
@@ -206,6 +251,8 @@ export default function HomeScreen() {
             onSpinComplete={handleSpinComplete}
             activeCategory={activeCategory}
             onCategoryChange={setActiveCategory}
+            displayedPick={winnerCardMode === 'shared' ? winner : null}
+            emptyState={favoritesEmptyState}
             shouldWinChickFilA={shouldWinChickFilA}
             spinLabel={hasCompletedSpin ? 'SPIN AGAIN' : 'SPIN'}
           />
@@ -215,18 +262,42 @@ export default function HomeScreen() {
             Suppressed on the Sunday Chick-fil-A Easter egg; SundayClosedOverlay
             takes over the full screen with a dramatic reveal instead. */}
         {spinState === 'result' && winner && !(winner.id === CHICK_FIL_A_ID && isSundayOrForced()) && (
-          <WinnerCard winner={winner} mode={winnerCardMode} onSpinOwnPick={handleSpinAgain} />
+          <WinnerCard
+            winner={winner}
+            mode={winnerCardMode}
+            onSpinOwnPick={handleSpinAgain}
+            isFavorite={isFavorite(winner.id)}
+            onToggleFavorite={toggleFavorite}
+          />
         )}
 
         <View style={styles.footer}>
-          {filteredPool.length === 0 && (
+          {(filteredPool.length === 0 || favoritesEmptyState) && (
             <Text style={styles.emptyNote}>
-              No restaurants in this category right now. Switch back to All dining or edit the list.
+              {favoritesEmptyState?.footer ?? 'No restaurants in this category right now. Switch back to All dining or edit the list.'}
             </Text>
           )}
+          {favoritesEmptyState ? (
+            <View style={styles.emptyActions}>
+              <Pressable
+                onPress={() => router.push({ pathname: '/list', params: { category: 'all' } })}
+                style={({ pressed }) => [styles.emptyActionPrimary, pressed && styles.pressed]}
+                accessibilityRole="button"
+              >
+                <Text style={styles.emptyActionPrimaryText}>Browse restaurants</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setActiveCategory('all')}
+                style={({ pressed }) => [styles.emptyActionSecondary, pressed && styles.pressed]}
+                accessibilityRole="button"
+              >
+                <Text style={styles.emptyActionSecondaryText}>Spin all restaurants</Text>
+              </Pressable>
+            </View>
+          ) : null}
           <Pressable onPress={() => router.push({ pathname: '/list', params: { category: activeCategory } })} style={styles.listLink} accessibilityRole="link">
             <Text style={styles.listLinkText}>
-              {filteredPool.length} restaurant{filteredPool.length !== 1 ? 's' : ''} in play • {activeLabel} • Manage list
+              {filteredPool.length} restaurant{filteredPool.length !== 1 ? 's' : ''} in play • {activeLabel} • {favoriteCount} favorite{favoriteCount !== 1 ? 's' : ''} • Manage list
             </Text>
           </Pressable>
         </View>
@@ -248,10 +319,14 @@ function WinnerCard({
   winner,
   mode,
   onSpinOwnPick,
+  isFavorite,
+  onToggleFavorite,
 }: {
   winner: Restaurant;
   mode: WinnerCardMode;
   onSpinOwnPick: () => void;
+  isFavorite: boolean;
+  onToggleFavorite: (id: number) => void;
 }) {
   const slideAnim = useRef(new Animated.Value(48)).current;
   const fadeAnim  = useRef(new Animated.Value(0)).current;
@@ -293,35 +368,27 @@ function WinnerCard({
               </Pressable>
             ) : null}
           </View>
+          <Pressable
+            onPress={() => onToggleFavorite(winner.id)}
+            style={[wStyles.favoriteButton, isFavorite && wStyles.favoriteButtonActive]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isFavorite }}
+            accessibilityLabel={`${isFavorite ? 'Remove' : 'Add'} ${winner.name} ${isFavorite ? 'from' : 'to'} favorites`}
+            hitSlop={8}
+          >
+            <Text style={[wStyles.favoriteIcon, isFavorite && wStyles.favoriteIconActive]}>
+              {isFavorite ? '♥' : '♡'}
+            </Text>
+          </Pressable>
         </View>
 
-        {/* Primary action row */}
-        <View style={wStyles.actions}>
+        <View style={wStyles.primaryActions}>
           <Pressable
-            onPress={handleMaps}
+            onPress={handleShare}
             style={({ pressed }) => [wStyles.primary, pressed && wStyles.pressed]}
             accessibilityRole="button"
           >
-            <Text style={wStyles.primaryText}>Open in Maps</Text>
-          </Pressable>
-          {winner.phone ? (
-            <Pressable
-              onPress={handlePhone}
-              style={({ pressed }) => [wStyles.secondary, pressed && wStyles.pressed]}
-              accessibilityRole="link"
-            >
-              <Text style={wStyles.secondaryText}>Call</Text>
-            </Pressable>
-          ) : null}
-        </View>
-
-        <View style={wStyles.shareActions}>
-          <Pressable
-            onPress={handleShare}
-            style={({ pressed }) => [wStyles.secondaryWide, pressed && wStyles.pressed]}
-            accessibilityRole="button"
-          >
-            <Text style={wStyles.secondaryText}>Share this pick</Text>
+            <Text style={wStyles.primaryText}>Share this pick</Text>
           </Pressable>
           {isSharedPick ? (
             <Pressable
@@ -334,16 +401,24 @@ function WinnerCard({
           ) : null}
         </View>
 
-        {/* Website — tertiary button, not a tiny text link */}
-        {winner.website_url ? (
+        <View style={wStyles.utilityActions}>
           <Pressable
-            onPress={handleWebsite}
-            style={({ pressed }) => [wStyles.tertiary, pressed && wStyles.pressed]}
-            accessibilityRole="link"
+            onPress={handleMaps}
+            style={({ pressed }) => [wStyles.secondary, pressed && wStyles.pressed]}
+            accessibilityRole="button"
           >
-            <Text style={wStyles.tertiaryText}>View website</Text>
+            <Text style={wStyles.secondaryText}>Open in Maps</Text>
           </Pressable>
-        ) : null}
+          {winner.website_url ? (
+            <Pressable
+              onPress={handleWebsite}
+              style={({ pressed }) => [wStyles.secondary, pressed && wStyles.pressed]}
+              accessibilityRole="link"
+            >
+              <Text style={wStyles.secondaryText}>View website</Text>
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
     </Animated.View>
@@ -472,8 +547,26 @@ const styles = StyleSheet.create({
   machineHint: { color: Colors.textMuted, fontSize: FontSizes.md, lineHeight: 22, textAlign: 'center', maxWidth: 460 },
   footer: { alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.lg, maxWidth: 760 },
   emptyNote: { fontSize: FontSizes.sm, color: Colors.textMuted, textAlign: 'center', lineHeight: 18, maxWidth: 420 },
+  emptyActions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: Spacing.sm },
+  emptyActionPrimary: {
+    backgroundColor: Colors.primary,
+    borderRadius: Radii.sm,
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.md,
+  },
+  emptyActionPrimaryText: { color: Colors.textInverse, fontSize: FontSizes.sm, fontWeight: '900' },
+  emptyActionSecondary: {
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    borderRadius: Radii.sm,
+    paddingVertical: Spacing.sm + 1,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: Colors.surface,
+  },
+  emptyActionSecondaryText: { color: Colors.primary, fontSize: FontSizes.sm, fontWeight: '900' },
   listLink: { paddingVertical: Spacing.sm },
   listLinkText: { fontSize: FontSizes.sm, color: Colors.primary, textDecorationLine: 'underline', fontWeight: '700', textAlign: 'center' },
+  pressed: { opacity: 0.82, transform: [{ scale: 0.985 }] },
 });
 
 const wStyles = StyleSheet.create({
@@ -506,6 +599,30 @@ const wStyles = StyleSheet.create({
   },
   logoFallbackText: { color: Colors.primary, fontSize: FontSizes.xl, fontWeight: '900' },
   info: { flex: 1, gap: 4 },
+  favoriteButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  favoriteButtonActive: {
+    backgroundColor: '#FFF3F5',
+    borderColor: '#D84A5F',
+  },
+  favoriteIcon: {
+    color: Colors.textMuted,
+    fontSize: 26,
+    fontWeight: '800',
+    lineHeight: 28,
+  },
+  favoriteIconActive: {
+    color: '#D84A5F',
+  },
   eyebrow: {
     color: Colors.primary,
     fontSize: FontSizes.xs,
@@ -530,10 +647,9 @@ const wStyles = StyleSheet.create({
     fontWeight: '800',
     paddingTop: 2,
   },
-  actions: { flexDirection: 'row', gap: Spacing.sm },
-  shareActions: { gap: Spacing.sm },
+  primaryActions: { gap: Spacing.sm },
+  utilityActions: { flexDirection: 'row', gap: Spacing.sm },
   primary: {
-    flex: 1.6,
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: Colors.primary,
     borderRadius: Radii.md,
@@ -545,15 +661,10 @@ const wStyles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1.5, borderColor: Colors.primary,
     borderRadius: Radii.md,
-    paddingVertical: Spacing.md - 1,
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.xs,
   },
-  secondaryText: { color: Colors.primary, fontSize: FontSizes.lg, fontWeight: '900' },
-  secondaryWide: {
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: Colors.primary,
-    borderRadius: Radii.md,
-    paddingVertical: Spacing.md - 1,
-  },
+  secondaryText: { color: Colors.primary, fontSize: FontSizes.sm, fontWeight: '900', textAlign: 'center' },
   spinOwn: {
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: Colors.gold,
@@ -565,15 +676,6 @@ const wStyles = StyleSheet.create({
     fontSize: FontSizes.lg,
     fontWeight: '900',
   },
-  // Tertiary: same button shape as secondary, distinguishable but clearly an action
-  tertiary: {
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: Colors.border,
-    borderRadius: Radii.md,
-    paddingVertical: Spacing.md - 1,
-    backgroundColor: Colors.backgroundAlt,
-  },
-  tertiaryText: { color: Colors.textPrimary, fontSize: FontSizes.lg, fontWeight: '700' },
   pressed: { opacity: 0.82, transform: [{ scale: 0.985 }] },
 });
 
